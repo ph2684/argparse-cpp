@@ -624,6 +624,7 @@ namespace argparse {
         bool required;                              // Required flag
         std::function<detail::AnyValue(const std::string&)> converter;
         std::function<bool(const detail::AnyValue&)> validator;
+        std::function<detail::AnyValue(const detail::AnyValue&, const std::string&)> custom_action;  // Custom action handler
         
         ArgumentDefinition() 
             : action("store"), type_name("string"), nargs(1), required(false) {}
@@ -714,6 +715,13 @@ namespace argparse {
         // 直接的なconverter設定（上級者向け）
         Argument& converter(std::function<detail::AnyValue(const std::string&)> converter_func) {
             definition_.converter = converter_func;
+            return *this;
+        }
+        
+        // カスタムアクション設定
+        Argument& custom_action(std::function<detail::AnyValue(const detail::AnyValue&, const std::string&)> action_func) {
+            definition_.custom_action = action_func;
+            definition_.action = "custom";
             return *this;
         }
         
@@ -1286,6 +1294,81 @@ namespace argparse {
                     result.set(key, true);
                 } else if (def.action == "store_false") {
                     result.set(key, false);
+                } else if (def.action == "count") {
+                    // カウント数を増加
+                    int current_count = 0;
+                    if (result.has(key)) {
+                        current_count = result.get<int>(key);
+                    }
+                    result.set(key, current_count + 1);
+                } else if (def.action == "append") {
+                    // リストに値を追加
+                    if (!tokenizer_.has_next()) {
+                        throw std::runtime_error("Argument " + token.value + " requires a value");
+                    }
+                    
+                    Token value_token = tokenizer_.next();
+                    if (value_token.type != Token::OPTION_VALUE && value_token.type != Token::POSITIONAL) {
+                        throw std::runtime_error("Argument " + token.value + " requires a value");
+                    }
+                    
+                    try {
+                        AnyValue value = arg->convert_value(value_token.value);
+                        if (!arg->validate_value(value)) {
+                            throw std::invalid_argument("Invalid value for argument " + token.value + ": " + value_token.value);
+                        }
+                        
+                        // 既存のリストに追加、またはリストを作成
+                        if (result.has(key)) {
+                            const auto& current_list = result.get_raw(key);
+                            // ListハンドラーでリストAPI処理が必要だが、簡単のため文字列ベクターで実装
+                            if (current_list.type() == typeid(std::vector<std::string>)) {
+                                auto list = current_list.get<std::vector<std::string>>();
+                                list.push_back(value.get<std::string>());
+                                result.set(key, list);
+                            } else {
+                                // 初回、単一値を含むリストに変換
+                                std::vector<std::string> new_list;
+                                new_list.push_back(current_list.get<std::string>());
+                                new_list.push_back(value.get<std::string>());
+                                result.set(key, new_list);
+                            }
+                        } else {
+                            // 初回はリストとして作成
+                            std::vector<std::string> new_list;
+                            new_list.push_back(value.get<std::string>());
+                            result.set(key, new_list);
+                        }
+                    } catch (const std::exception& e) {
+                        throw std::invalid_argument("Error parsing argument " + token.value + ": " + e.what());
+                    }
+                } else if (def.action == "custom") {
+                    // カスタムアクション処理
+                    if (!def.custom_action) {
+                        throw std::runtime_error("Custom action specified but no handler provided for " + token.value);
+                    }
+                    
+                    // 値が必要かどうかはnargによる（この場合は簡単のため値を取る）
+                    std::string value_str = "";
+                    if (tokenizer_.has_next()) {
+                        Token value_token = tokenizer_.peek();
+                        if (value_token.type == Token::OPTION_VALUE || value_token.type == Token::POSITIONAL) {
+                            value_token = tokenizer_.next();
+                            value_str = value_token.value;
+                        }
+                    }
+                    
+                    try {
+                        AnyValue current_value;
+                        if (result.has(key)) {
+                            current_value = result.get_raw(key);
+                        }
+                        
+                        AnyValue new_value = def.custom_action(current_value, value_str);
+                        result.set_raw(key, new_value);
+                    } catch (const std::exception& e) {
+                        throw std::invalid_argument("Error in custom action for " + token.value + ": " + e.what());
+                    }
                 } else if (def.action == "store" || def.action.empty()) {
                     // 値が必要な場合
                     if (!tokenizer_.has_next()) {

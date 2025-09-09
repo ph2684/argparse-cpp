@@ -36,13 +36,18 @@ argparse-cppは、PythonのargparseモジュールのコアAPIをC++で実装す
 
 ### テスト
 ```bash
-# 単体テストの実行（CMakeベース - 将来実装予定）
-mkdir build && cd build
-cmake ..
-make test
+# 単体テストの実行（CMakeベース）
+# Google TestはFetchContentを使用して自動ダウンロードされます
+cmake -B tests/build -S tests
+cmake --build tests/build
+ctest --test-dir tests/build
 
-# Google Testベースの個別テスト実行
-./build/tests/unit/parser_test
+# 個別テストの実行例
+ctest --test-dir tests/build -R basic_structure_test
+ctest --test-dir tests/build -R anyvalue_test
+
+# 詳細なテスト出力
+ctest --test-dir tests/build --verbose
 ```
 
 ### ビルド
@@ -122,6 +127,10 @@ auto str = value.get<std::string>();
 - 単体テスト: 各コンポーネントの独立したテスト
 - 統合テスト: Python argparseとの出力比較
 - パフォーマンステスト: 引数100個で1ms未満の解析
+
+### テスト実行方針
+- **Google Test使用**: CMakeのFetchContentで自動ダウンロード・ビルド
+- **cdコマンド禁止**: AIの動作安定化のためカレントディレクトリ変更は避ける。`cmake -B tests/build -S tests`、`cmake --build tests/build`、`ctest --test-dir tests/build`を使用する
 
 ## ファイル構造（実装予定）
 

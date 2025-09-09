@@ -1,0 +1,27 @@
+{
+  "id": "approval_1757381855082_zo6asktvo",
+  "title": "argparse-core 要件定義書の承認",
+  "filePath": "/home/hasegawa/code/argparse-cpp/.spec-workflow/specs/argparse-core/requirements.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2025-09-09T01:37:35.082Z",
+  "category": "spec",
+  "categoryName": "argparse-core",
+  "response": "修正が反映され、承認されました",
+  "annotations": "{\n  \"decision\": \"needs-revision\",\n  \"comments\": [\n    {\n      \"type\": \"selection\",\n      \"comment\": \"「または」は and/or ですか？すなわち、 \\\"--\\\"と\\\"-\\\"両方のエイリアスを持つ引数、\\\"--\\\"単体の引数、\\\"-\\\"単体の引数、のいずれも作成可能ということです。\",\n      \"timestamp\": \"2025-09-09T01:41:20.627Z\",\n      \"selectedText\": \"\\\"--\\\"または\\\"-\\\"\",\n      \"highlightColor\": {\n        \"bg\": \"rgba(255, 235, 59, 0.3)\",\n        \"border\": \"#FFEB3B\",\n        \"name\": \"#ffeb3b\"\n      },\n      \"id\": \"comment_1757382080627_mzwtig2ef\"\n    }\n  ],\n  \"summary\": \"Feedback Summary (1 comments):\\n\\nSpecific Text Comments:\\n1. \\\"\\\"--\\\"または\\\"-\\\"\\\": 「または」は and/or ですか？すなわち、 \\\"--\\\"と\\\"-\\\"両方のエイリアスを持つ引数、\\\"--\\\"単体の引数、\\\"-\\\"単体の引数、のいずれも作成可能ということです。\\n\",\n  \"timestamp\": \"2025-09-09T01:43:45.034Z\"\n}",
+  "respondedAt": "2025-09-09T01:43:44.523Z",
+  "comments": [
+    {
+      "type": "selection",
+      "comment": "「または」は and/or ですか？すなわち、 \"--\"と\"-\"両方のエイリアスを持つ引数、\"--\"単体の引数、\"-\"単体の引数、のいずれも作成可能ということです。",
+      "timestamp": "2025-09-09T01:41:20.627Z",
+      "selectedText": "\"--\"または\"-\"",
+      "highlightColor": {
+        "bg": "rgba(255, 235, 59, 0.3)",
+        "border": "#FFEB3B",
+        "name": "#ffeb3b"
+      },
+      "id": "comment_1757382080627_mzwtig2ef"
+    }
+  ]
+}

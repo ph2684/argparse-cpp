@@ -43,7 +43,6 @@ namespace argparse {
         // Internal implementation details
         class Parser;
         class Tokenizer;
-        class TypeConverter;
         class HelpGenerator;
         
         // Type erasure implementation for C++11 (std::any alternative)
@@ -205,6 +204,171 @@ namespace argparse {
                 std::swap(holder_, other.holder_);
             }
         };
+        
+        // TypeConverter: 文字列から各型への変換機能
+        class TypeConverter {
+        public:
+            // 基本型変換器のテンプレート
+            template<typename T>
+            static std::function<AnyValue(const std::string&)> get_converter();
+            
+            // int変換
+            static std::function<AnyValue(const std::string&)> int_converter() {
+                return [](const std::string& value) -> AnyValue {
+                    try {
+                        // 先頭と末尾の空白を除去
+                        std::string trimmed = trim(value);
+                        if (trimmed.empty()) {
+                            throw std::invalid_argument("empty string cannot be converted to int");
+                        }
+                        
+                        size_t pos;
+                        int result = std::stoi(trimmed, &pos);
+                        
+                        // 全体が変換されたかチェック
+                        if (pos != trimmed.length()) {
+                            throw std::invalid_argument("invalid int value: '" + value + "'");
+                        }
+                        
+                        return AnyValue(result);
+                    } catch (const std::invalid_argument&) {
+                        throw std::invalid_argument("invalid int value: '" + value + "'");
+                    } catch (const std::out_of_range&) {
+                        throw std::invalid_argument("int value out of range: '" + value + "'");
+                    }
+                };
+            }
+            
+            // float/double変換
+            static std::function<AnyValue(const std::string&)> float_converter() {
+                return [](const std::string& value) -> AnyValue {
+                    try {
+                        std::string trimmed = trim(value);
+                        if (trimmed.empty()) {
+                            throw std::invalid_argument("empty string cannot be converted to float");
+                        }
+                        
+                        size_t pos;
+                        double result = std::stod(trimmed, &pos);
+                        
+                        if (pos != trimmed.length()) {
+                            throw std::invalid_argument("invalid float value: '" + value + "'");
+                        }
+                        
+                        return AnyValue(result);
+                    } catch (const std::invalid_argument&) {
+                        throw std::invalid_argument("invalid float value: '" + value + "'");
+                    } catch (const std::out_of_range&) {
+                        throw std::invalid_argument("float value out of range: '" + value + "'");
+                    }
+                };
+            }
+            
+            // bool変換
+            static std::function<AnyValue(const std::string&)> bool_converter() {
+                return [](const std::string& value) -> AnyValue {
+                    std::string lower_value = to_lower(trim(value));
+                    
+                    if (lower_value.empty()) {
+                        throw std::invalid_argument("empty string cannot be converted to bool");
+                    }
+                    
+                    // true値
+                    if (lower_value == "true" || lower_value == "1" || 
+                        lower_value == "yes" || lower_value == "on") {
+                        return AnyValue(true);
+                    }
+                    
+                    // false値
+                    if (lower_value == "false" || lower_value == "0" || 
+                        lower_value == "no" || lower_value == "off") {
+                        return AnyValue(false);
+                    }
+                    
+                    throw std::invalid_argument("invalid bool value: '" + value + "' (expected: true/false, 1/0, yes/no, on/off)");
+                };
+            }
+            
+            // string変換（デフォルト）
+            static std::function<AnyValue(const std::string&)> string_converter() {
+                return [](const std::string& value) -> AnyValue {
+                    return AnyValue(value);
+                };
+            }
+            
+            // 型名から変換器を取得
+            static std::function<AnyValue(const std::string&)> get_converter_by_name(const std::string& type_name) {
+                if (type_name == "int") {
+                    return int_converter();
+                } else if (type_name == "float" || type_name == "double") {
+                    return float_converter();
+                } else if (type_name == "bool") {
+                    return bool_converter();
+                } else if (type_name == "string" || type_name == "str") {
+                    return string_converter();
+                } else {
+                    // 不明な型はデフォルトでstring変換
+                    return string_converter();
+                }
+            }
+            
+            // カスタム変換器の作成ヘルパー
+            template<typename T>
+            static std::function<AnyValue(const std::string&)> create_custom_converter(
+                std::function<T(const std::string&)> converter_func) {
+                return [converter_func](const std::string& value) -> AnyValue {
+                    try {
+                        T result = converter_func(value);
+                        return AnyValue(result);
+                    } catch (const std::exception& e) {
+                        throw std::invalid_argument("custom conversion failed for '" + value + "': " + e.what());
+                    }
+                };
+            }
+            
+        private:
+            // ユーティリティ関数
+            static std::string trim(const std::string& str) {
+                size_t start = str.find_first_not_of(" \t\n\r");
+                if (start == std::string::npos) return "";
+                
+                size_t end = str.find_last_not_of(" \t\n\r");
+                return str.substr(start, end - start + 1);
+            }
+            
+            static std::string to_lower(const std::string& str) {
+                std::string result = str;
+                std::transform(result.begin(), result.end(), result.begin(), 
+                    [](unsigned char c) { return std::tolower(c); });
+                return result;
+            }
+        };
+        
+        // テンプレート特殊化によるget_converterの実装
+        template<>
+        std::function<AnyValue(const std::string&)> TypeConverter::get_converter<int>() {
+            return int_converter();
+        }
+        
+        template<>
+        std::function<AnyValue(const std::string&)> TypeConverter::get_converter<float>() {
+            return float_converter();
+        }
+        
+        template<>
+        std::function<AnyValue(const std::string&)> TypeConverter::get_converter<double>() {
+            return float_converter();
+        }
+        
+        template<>
+        std::function<AnyValue(const std::string&)> TypeConverter::get_converter<bool>() {
+            return bool_converter();
+        }
+        
+        template<>
+        std::function<AnyValue(const std::string&)> TypeConverter::get_converter<std::string>() {
+            return string_converter();
+        }
     }
     
     // Argument definition structure
@@ -300,6 +464,19 @@ namespace argparse {
             return *this;
         }
         
+        // カスタム型変換器の設定
+        template<typename T>
+        Argument& converter(std::function<T(const std::string&)> converter_func) {
+            definition_.converter = detail::TypeConverter::create_custom_converter<T>(converter_func);
+            return *this;
+        }
+        
+        // 直接的なconverter設定（上級者向け）
+        Argument& converter(std::function<detail::AnyValue(const std::string&)> converter_func) {
+            definition_.converter = converter_func;
+            return *this;
+        }
+        
         // Access to definition
         const ArgumentDefinition& definition() const {
             return definition_;
@@ -368,40 +545,9 @@ namespace argparse {
             };
         }
         
-        // Setup converter based on type
+        // Setup converter based on type using TypeConverter
         void _setup_converter_for_type(const std::string& type_name) {
-            if (type_name == "int") {
-                definition_.converter = [](const std::string& value) -> detail::AnyValue {
-                    try {
-                        return detail::AnyValue(std::stoi(value));
-                    } catch (const std::exception&) {
-                        throw std::invalid_argument("invalid int value: '" + value + "'");
-                    }
-                };
-            } else if (type_name == "float" || type_name == "double") {
-                definition_.converter = [](const std::string& value) -> detail::AnyValue {
-                    try {
-                        return detail::AnyValue(std::stod(value));
-                    } catch (const std::exception&) {
-                        throw std::invalid_argument("invalid float value: '" + value + "'");
-                    }
-                };
-            } else if (type_name == "bool") {
-                definition_.converter = [](const std::string& value) -> detail::AnyValue {
-                    std::string lower_value = value;
-                    std::transform(lower_value.begin(), lower_value.end(), lower_value.begin(), ::tolower);
-                    if (lower_value == "true" || lower_value == "1" || lower_value == "yes") {
-                        return detail::AnyValue(true);
-                    } else if (lower_value == "false" || lower_value == "0" || lower_value == "no") {
-                        return detail::AnyValue(false);
-                    } else {
-                        throw std::invalid_argument("invalid bool value: '" + value + "'");
-                    }
-                };
-            } else {
-                // Default to string
-                _setup_default_converter();
-            }
+            definition_.converter = detail::TypeConverter::get_converter_by_name(type_name);
         }
     };
     

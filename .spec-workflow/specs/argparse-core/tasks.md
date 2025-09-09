@@ -22,7 +22,7 @@ _Prompt: Role: [専門的な開発者の役割] | Task: [コンテキスト参�
   - _Requirements: 要件6、設計書のAnyValue_
   - _Prompt: Role: C++テンプレートメタプログラミング専門家 | Task: argparse::detail名前空間にAnyValueクラスを実装し、型消去技術を使用して任意の型を保持できるようにする、BaseHolderインターフェースとHolder<T>テンプレートクラスを実装 | Restrictions: C++11準拠、std::anyは使用不可、メモリリークを防ぐ | Success: AnyValueが任意の型を安全に保持・取得でき、型チェックが機能する_
 
-- [ ] 3. Argumentクラスの基本実装
+- [x] 3. Argumentクラスの基本実装
   - File: include/argparse/argparse.hpp
   - ArgumentDefinition構造体の定義
   - Argumentクラスの基本メソッド実装
@@ -31,7 +31,7 @@ _Prompt: Role: [専門的な開発者の役割] | Task: [コンテキスト参�
   - _Requirements: 要件2、3、設計書のArgument_
   - _Prompt: Role: C++クラス設計専門家 | Task: ArgumentDefinition構造体とArgumentクラスを実装し、引数の名前、ヘルプテキスト、デフォルト値、タイプ、アクションなどのプロパティを管理できるようにする | Restrictions: Python argparseとAPIの一貫性を保つ、過度に複雑にしない | Success: Argumentクラスが引数定義を適切に保持し、設定メソッドが動作する_
 
-- [ ] 4. 型変換機能の実装
+- [x] 4. 型変換機能の実装
   - File: include/argparse/argparse.hpp（detail namespace内）
   - TypeConverterテンプレートの実装
   - int、float、string、boolの変換器

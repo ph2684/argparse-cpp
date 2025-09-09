@@ -1,0 +1,21 @@
+{
+  "id": "approval_1757403146748_6lkmu6987",
+  "title": "store_trueアクションのデフォルト値問題の修正",
+  "filePath": "/home/hasegawa/code/argparse-cpp/.spec-workflow/specs/argparse-core/",
+  "type": "document",
+  "status": "needs-revision",
+  "createdAt": "2025-09-09T07:32:26.748Z",
+  "category": "spec",
+  "categoryName": "argparse-core",
+  "response": "Feedback Summary (1 comments):\n\nGeneral Comments:\n1. 関連するドキュメントが示されていません\n\n",
+  "annotations": "{\n  \"decision\": \"needs-revision\",\n  \"comments\": [\n    {\n      \"type\": \"general\",\n      \"comment\": \"関連するドキュメントが示されていません\",\n      \"timestamp\": \"2025-09-09T07:33:44.524Z\",\n      \"id\": \"comment_1757403224524_53rgalzvg\"\n    }\n  ],\n  \"summary\": \"Feedback Summary (1 comments):\\n\\nGeneral Comments:\\n1. 関連するドキュメントが示されていません\\n\\n\",\n  \"timestamp\": \"2025-09-09T07:33:45.514Z\"\n}",
+  "respondedAt": "2025-09-09T07:33:44.594Z",
+  "comments": [
+    {
+      "type": "general",
+      "comment": "関連するドキュメントが示されていません",
+      "timestamp": "2025-09-09T07:33:44.524Z",
+      "id": "comment_1757403224524_53rgalzvg"
+    }
+  ]
+}

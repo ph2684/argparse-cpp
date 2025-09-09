@@ -83,15 +83,18 @@ argparse-cpp/
 
 ### ヘッダファイル構成
 ```cpp
-// 1. インクルードガード/pragma once
+// 1. インクルードガード/pragma once（unix/MSVC両対応）
 #pragma once
+
+#ifndef ARGPARSE_HPP_INCLUDED
+#define ARGPARSE_HPP_INCLUDED
 
 // 2. 標準ライブラリインクルード
 #include <string>
 #include <vector>
 
 // 3. マクロ定義（必要最小限）
-#define ARGPARSE_VERSION "1.0.0"
+#define ARGPARSE_VERSION "0.1.0"
 
 // 4. ネームスペース開始
 namespace argparse {
@@ -122,6 +125,8 @@ namespace detail {
 }
 
 } // namespace argparse
+
+#endif // ARGPARSE_HPP_INCLUDED
 ```
 
 ### クラス構成原則

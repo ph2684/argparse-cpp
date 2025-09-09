@@ -1,0 +1,12 @@
+{
+  "id": "approval_1757386919308_ykz8cagv3",
+  "title": "タスク仕様書の修正: 各タスクにユニットテスト通過条件を追加",
+  "filePath": "/home/hasegawa/code/argparse-cpp/.spec-workflow/specs/argparse-core/tasks.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2025-09-09T03:01:59.308Z",
+  "category": "spec",
+  "categoryName": "argparse-core",
+  "response": "ダッシュボードから承認",
+  "respondedAt": "2025-09-09T03:02:54.797Z"
+}

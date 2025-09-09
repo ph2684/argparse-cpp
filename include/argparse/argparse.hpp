@@ -696,6 +696,8 @@ namespace argparse {
                 definition_.nargs = -3;  // Special value for zero or more
             } else if (spec == "+") {
                 definition_.nargs = -4;  // Special value for one or more
+            } else if (spec == "remainder") {
+                definition_.nargs = -5;  // Special value for remainder
             }
             return *this;
         }
@@ -1253,7 +1255,7 @@ namespace argparse {
                 }
             }
             
-            // 位置引数の処理
+            // 位置引数の処理（nargs対応）
             void _handle_positional_argument(const Token& token, Namespace& result, 
                                            size_t& positional_index) {
                 if (positional_index >= positional_args_.size()) {
@@ -1261,14 +1263,62 @@ namespace argparse {
                 }
                 
                 auto arg = positional_args_[positional_index];
+                const auto& def = arg->definition();
                 std::string key = _get_storage_key(arg);
                 
                 try {
-                    AnyValue value = arg->convert_value(token.value);
-                    if (!arg->validate_value(value)) {
-                        throw std::invalid_argument("Invalid value for argument '" + key + "': " + token.value);
+                    std::vector<std::string> values;
+                    values.push_back(token.value);  // 現在のトークンを追加
+                    
+                    // nargs処理による追加値の収集
+                    if (def.nargs == -5) {  // remainder - 残り全て
+                        while (tokenizer_.has_next()) {
+                            values.push_back(tokenizer_.next().value);
+                        }
+                    } else if (def.nargs == -3) {  // "*" - zero or more (すでに1つあるので、残りを収集)
+                        while (tokenizer_.has_next()) {
+                            Token next = tokenizer_.peek();
+                            if (next.type == Token::POSITIONAL) {
+                                values.push_back(tokenizer_.next().value);
+                            } else {
+                                break;
+                            }
+                        }
+                    } else if (def.nargs == -4) {  // "+" - one or more (すでに1つあるので、残りを収集)
+                        while (tokenizer_.has_next()) {
+                            Token next = tokenizer_.peek();
+                            if (next.type == Token::POSITIONAL) {
+                                values.push_back(tokenizer_.next().value);
+                            } else {
+                                break;
+                            }
+                        }
+                    } else if (def.nargs > 1) {  // 固定数（2以上）
+                        for (int i = 1; i < def.nargs; ++i) {
+                            if (!tokenizer_.has_next()) {
+                                throw std::runtime_error("Positional argument '" + key + "' requires " + std::to_string(def.nargs) + " values");
+                            }
+                            Token next = tokenizer_.next();
+                            if (next.type != Token::POSITIONAL) {
+                                throw std::runtime_error("Positional argument '" + key + "' requires " + std::to_string(def.nargs) + " values");
+                            }
+                            values.push_back(next.value);
+                        }
                     }
-                    result.set_raw(key, value);
+                    
+                    // 値の変換と格納
+                    if (values.size() == 1 && def.nargs != -3 && def.nargs != -4 && def.nargs != -5 && def.nargs <= 1) {
+                        // 単一値
+                        AnyValue value = arg->convert_value(values[0]);
+                        if (!arg->validate_value(value)) {
+                            throw std::invalid_argument("Invalid value for argument '" + key + "': " + values[0]);
+                        }
+                        result.set_raw(key, value);
+                    } else {
+                        // 複数値、文字列リストとして格納
+                        result.set(key, values);
+                    }
+                    
                     ++positional_index;
                 } catch (const std::exception& e) {
                     throw std::invalid_argument("Error parsing positional argument '" + key + "': " + e.what());
@@ -1370,22 +1420,33 @@ namespace argparse {
                         throw std::invalid_argument("Error in custom action for " + token.value + ": " + e.what());
                     }
                 } else if (def.action == "store" || def.action.empty()) {
-                    // 値が必要な場合
-                    if (!tokenizer_.has_next()) {
-                        throw std::runtime_error("Argument " + token.value + " requires a value");
-                    }
-                    
-                    Token value_token = tokenizer_.next();
-                    if (value_token.type != Token::OPTION_VALUE && value_token.type != Token::POSITIONAL) {
-                        throw std::runtime_error("Argument " + token.value + " requires a value");
-                    }
-                    
+                    // nargs処理による値の収集
                     try {
-                        AnyValue value = arg->convert_value(value_token.value);
-                        if (!arg->validate_value(value)) {
-                            throw std::invalid_argument("Invalid value for argument " + token.value + ": " + value_token.value);
+                        std::vector<std::string> values = _collect_values(def, token);
+                        
+                        if (values.empty()) {
+                            // nargs="?" で値が無い場合、デフォルト値を使用
+                            if (def.nargs == -2 && !def.default_value.empty()) {
+                                result.set_raw(key, def.default_value);
+                            } else if (def.nargs == -2) {
+                                // デフォルト値もない場合はNone的な扱い（設定しない）
+                            } else if (def.nargs == -3) {
+                                // nargs="*" の場合、空のリストを設定
+                                result.set(key, std::vector<std::string>());
+                            } else {
+                                throw std::runtime_error("Argument " + token.value + " requires a value");
+                            }
+                        } else if (values.size() == 1 && def.nargs != -3 && def.nargs != -4 && def.nargs <= 1) {
+                            // 単一値の場合
+                            AnyValue value = arg->convert_value(values[0]);
+                            if (!arg->validate_value(value)) {
+                                throw std::invalid_argument("Invalid value for argument " + token.value + ": " + values[0]);
+                            }
+                            result.set_raw(key, value);
+                        } else {
+                            // 複数値の場合、元の文字列のリストとして格納
+                            result.set(key, values);
                         }
-                        result.set_raw(key, value);
                     } catch (const std::exception& e) {
                         throw std::invalid_argument("Error parsing argument " + token.value + ": " + e.what());
                     }
@@ -1405,6 +1466,94 @@ namespace argparse {
                         }
                     }
                 }
+            }
+            
+            // nargs値を取得（固定数、特殊値の処理）
+            int _get_effective_nargs(const ArgumentDefinition& def) const {
+                switch (def.nargs) {
+                    case -2: return 0;  // "?" - optional (0 or 1)
+                    case -3: return 0;  // "*" - zero or more
+                    case -4: return 1;  // "+" - one or more
+                    case -5: return 0;  // "remainder" - all remaining
+                    default: return def.nargs;  // 固定数
+                }
+            }
+            
+            // nargs仕様に基づいて値を収集
+            std::vector<std::string> _collect_values(const ArgumentDefinition& def, const Token& initial_token) {
+                std::vector<std::string> values;
+                
+                if (def.nargs == -2) {  // "?" - 0 or 1
+                    if (tokenizer_.has_next()) {
+                        Token next = tokenizer_.peek();
+                        if (next.type == Token::OPTION_VALUE || next.type == Token::POSITIONAL) {
+                            values.push_back(tokenizer_.next().value);
+                        }
+                    }
+                } else if (def.nargs == -3) {  // "*" - 0 or more
+                    while (tokenizer_.has_next()) {
+                        Token next = tokenizer_.peek();
+                        if (next.type == Token::OPTION_VALUE || 
+                            (next.type == Token::POSITIONAL && next.value[0] != '-')) {
+                            values.push_back(tokenizer_.next().value);
+                        } else {
+                            break;
+                        }
+                    }
+                } else if (def.nargs == -4) {  // "+" - 1 or more
+                    if (!tokenizer_.has_next()) {
+                        throw std::runtime_error("Argument requires at least one value");
+                    }
+                    
+                    // 最初の値を取得
+                    Token first = tokenizer_.next();
+                    if (first.type != Token::OPTION_VALUE && first.type != Token::POSITIONAL) {
+                        throw std::runtime_error("Argument requires at least one value");
+                    }
+                    values.push_back(first.value);
+                    
+                    // 追加の値を収集
+                    while (tokenizer_.has_next()) {
+                        Token next = tokenizer_.peek();
+                        if (next.type == Token::OPTION_VALUE || 
+                            (next.type == Token::POSITIONAL && next.value[0] != '-')) {
+                            values.push_back(tokenizer_.next().value);
+                        } else {
+                            break;
+                        }
+                    }
+                } else if (def.nargs == -5) {  // "remainder" - all remaining
+                    // 残りの全てのトークンを収集
+                    while (tokenizer_.has_next()) {
+                        values.push_back(tokenizer_.next().value);
+                    }
+                } else if (def.nargs > 0) {  // 固定数
+                    for (int i = 0; i < def.nargs; ++i) {
+                        if (!tokenizer_.has_next()) {
+                            throw std::runtime_error("Argument requires " + std::to_string(def.nargs) + " values");
+                        }
+                        
+                        Token value_token = tokenizer_.next();
+                        if (value_token.type != Token::OPTION_VALUE && value_token.type != Token::POSITIONAL) {
+                            throw std::runtime_error("Argument requires " + std::to_string(def.nargs) + " values");
+                        }
+                        values.push_back(value_token.value);
+                    }
+                } else if (def.nargs == 0) {  // 値を取らない
+                    // store_true, store_false, count等の処理
+                } else {  // デフォルト（1つの値）
+                    if (!tokenizer_.has_next()) {
+                        throw std::runtime_error("Argument requires a value");
+                    }
+                    
+                    Token value_token = tokenizer_.next();
+                    if (value_token.type != Token::OPTION_VALUE && value_token.type != Token::POSITIONAL) {
+                        throw std::runtime_error("Argument requires a value");
+                    }
+                    values.push_back(value_token.value);
+                }
+                
+                return values;
             }
             
             // 引数の保存キーを取得（位置引数は名前、オプション引数は主要名前）

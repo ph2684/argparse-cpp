@@ -98,7 +98,7 @@ _Prompt: Role: [専門的な開発者の役割] | Task: [コンテキスト参�
   - _Tests: tests/unit/parser_test.cpp - トークンと引数のマッチング、位置引数の順序処理、オプション引数の検索、不明な引数のエラーのテスト_
   - _Prompt: Role: コマンドライン解析専門家 | Task: detail::Parserクラスを実装し、トークン化された引数を定義済みArgumentとマッチング、位置引数は順序通り、オプション引数は名前で検索する処理を実装 | Restrictions: 不明な引数はエラー、必須引数チェック | Success: 引数が正しくマッチングされ、値が抽出され、tests/unit/parser_test.cppが通過する_
 
-- [ ] 10. parse_args()メソッドの実装
+- [x] 10. parse_args()メソッドの実装
   - File: include/argparse/argparse.hpp（ArgumentParser内）
   - argc/argvとvectorの両方をサポート
   - Parserクラスの呼び出し

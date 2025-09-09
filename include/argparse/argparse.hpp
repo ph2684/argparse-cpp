@@ -34,6 +34,23 @@
 
 namespace argparse {
     
+    // Custom exception for help requests
+    class help_requested : public std::exception {
+    private:
+        std::string help_message_;
+        
+    public:
+        explicit help_requested(const std::string& message) : help_message_(message) {}
+        
+        virtual const char* what() const noexcept override {
+            return help_message_.c_str();
+        }
+        
+        const std::string& message() const {
+            return help_message_;
+        }
+    };
+    
     // Forward declarations
     class ArgumentParser;
     class Argument;
@@ -585,6 +602,13 @@ namespace argparse {
                 return result;
             }
         };
+        
+        // HelpGenerator: ヘルプメッセージの生成
+        class HelpGenerator {
+        public:
+            // ヘルプメッセージを生成（実装はArgumentParserクラス定義後）
+            static std::string generate_help(const ArgumentParser& parser);
+        };
     }
     
     // Argument definition structure
@@ -788,8 +812,11 @@ namespace argparse {
             : prog_(prog), description_(description), epilog_(epilog), add_help_(add_help) {
             
             // prog が空の場合は後でargv[0]から設定される
-            if (prog_.empty()) {
-                prog_ = "program";  // デフォルト名、parse_argsで上書きされる
+            // デフォルト引数("")の場合は"program"に設定、parse_argsで上書きされる
+            
+            // --help オプションを自動追加
+            if (add_help_) {
+                _add_help_argument();
             }
         }
         
@@ -968,6 +995,24 @@ namespace argparse {
                 }
                 _check_duplicate_argument(name);
             }
+        }
+        
+        // Add default --help argument
+        void _add_help_argument() {
+            // Check if --help or -h is already added by user
+            if (argument_map_.find("--help") != argument_map_.end() || 
+                argument_map_.find("-h") != argument_map_.end()) {
+                return; // User has already defined help argument
+            }
+            
+            std::vector<std::string> help_names = {"--help", "-h"};
+            auto help_arg = std::make_shared<Argument>(help_names);
+            help_arg->action("help")
+                    .help("show this help message and exit");
+            
+            arguments_.push_back(help_arg);
+            argument_map_["--help"] = help_arg;
+            argument_map_["-h"] = help_arg;
         }
     };
     
@@ -1234,7 +1279,10 @@ namespace argparse {
                 std::string key = _get_storage_key(arg);
                 
                 // actionに基づく処理
-                if (def.action == "store_true") {
+                if (def.action == "help") {
+                    // ヘルプが要求された場合は例外を投げる
+                    throw help_requested("Help requested");
+                } else if (def.action == "store_true") {
                     result.set(key, true);
                 } else if (def.action == "store_false") {
                     result.set(key, false);
@@ -1305,20 +1353,107 @@ namespace argparse {
         };
     } // namespace detail
     
+    // HelpGenerator implementation (after ArgumentParser definition)
+    inline std::string detail::HelpGenerator::generate_help(const ArgumentParser& parser) {
+        std::ostringstream oss;
+        
+        // Usage line
+        oss << "usage: " << parser.prog();
+        
+        // Add options summary
+        const auto& arguments = parser.get_arguments();
+        bool has_optional = false;
+        bool has_positional = false;
+        
+        for (const auto& arg : arguments) {
+            if (arg->is_positional()) {
+                has_positional = true;
+                oss << " " << arg->get_name();
+            } else {
+                has_optional = true;
+            }
+        }
+        
+        if (has_optional) {
+            oss << " [options]";
+        }
+        oss << "\n\n";
+        
+        // Description
+        if (!parser.description().empty()) {
+            oss << parser.description() << "\n\n";
+        }
+        
+        // Positional arguments
+        if (has_positional) {
+            oss << "positional arguments:\n";
+            for (const auto& arg : arguments) {
+                if (arg->is_positional()) {
+                    oss << "  " << arg->get_name();
+                    if (!arg->definition().help.empty()) {
+                        oss << "    " << arg->definition().help;
+                    }
+                    oss << "\n";
+                }
+            }
+            oss << "\n";
+        }
+        
+        // Optional arguments
+        if (has_optional) {
+            oss << "optional arguments:\n";
+            for (const auto& arg : arguments) {
+                if (!arg->is_positional()) {
+                    const auto& names = arg->get_names();
+                    oss << "  ";
+                    for (size_t i = 0; i < names.size(); ++i) {
+                        if (i > 0) oss << ", ";
+                        oss << names[i];
+                    }
+                    
+                    if (!arg->definition().help.empty()) {
+                        oss << "    " << arg->definition().help;
+                    }
+                    oss << "\n";
+                }
+            }
+            oss << "\n";
+        }
+        
+        // Epilog
+        if (!parser.epilog().empty()) {
+            oss << parser.epilog() << "\n";
+        }
+        
+        return oss.str();
+    }
+    
     // ArgumentParser parse_args method implementations
     inline Namespace ArgumentParser::parse_args(int argc, char* argv[]) {
-        // Set program name from argv[0] if not already set
-        if (prog_ == "program" && argc > 0) {
+        // Set program name from argv[0] if not already set (default or empty)
+        if ((prog_ == "program" || prog_.empty()) && argc > 0) {
             prog_ = _extract_prog_name(std::string(argv[0]));
         }
         
-        detail::Parser parser;
-        return parser.parse(argc, argv, arguments_);
+        try {
+            detail::Parser parser;
+            return parser.parse(argc, argv, arguments_);
+        } catch (const help_requested&) {
+            // Generate and throw help message
+            std::string help_message = detail::HelpGenerator::generate_help(*this);
+            throw help_requested(help_message);
+        }
     }
     
     inline Namespace ArgumentParser::parse_args(const std::vector<std::string>& args) {
-        detail::Parser parser;
-        return parser.parse(args, arguments_);
+        try {
+            detail::Parser parser;
+            return parser.parse(args, arguments_);
+        } catch (const help_requested&) {
+            // Generate and throw help message
+            std::string help_message = detail::HelpGenerator::generate_help(*this);
+            throw help_requested(help_message);
+        }
     }
     
 } // namespace argparse

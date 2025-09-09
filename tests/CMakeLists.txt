@@ -50,6 +50,7 @@ set(TEST_SOURCES
     unit/namespace_test.cpp
     unit/tokenizer_test.cpp
     unit/parser_test.cpp
+    unit/parse_args_test.cpp
 )
 
 # テスト実行ファイルを作成

@@ -1722,10 +1722,18 @@ namespace argparse {
             void _validate_required_arguments(const Namespace& result, 
                                             const std::vector<std::shared_ptr<Argument>>& arguments) {
                 for (const auto& arg : arguments) {
-                    if (arg->definition().required) {
-                        std::string key = _get_storage_key(arg);
+                    const auto& def = arg->definition();
+                    std::string key = _get_storage_key(arg);
+                    
+                    // オプション引数でrequiredフラグがtrueの場合
+                    if (def.required && !result.has(key)) {
+                        throw std::runtime_error("Required argument missing: " + arg->get_name());
+                    }
+                    
+                    // 位置引数は常に必須（nargs="?" "*"の場合を除く）
+                    if (arg->is_positional() && def.nargs != -2 && def.nargs != -3) {
                         if (!result.has(key)) {
-                            throw std::runtime_error("Required argument missing: " + arg->get_name());
+                            throw std::runtime_error("Required positional argument missing: " + arg->get_name());
                         }
                     }
                 }

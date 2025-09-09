@@ -183,7 +183,7 @@ _Prompt: Role: [専門的な開発者の役割] | Task: [コンテキスト参�
   - _Tests: tests/unit/choices_test.cpp - 選択肢リストの設定、有効な値の受け入れ、無効な値の拒否、エラーメッセージの確認のテスト_
   - _Prompt: Role: 入力検証専門家 | Task: Argumentクラスにchoicesパラメータを実装、設定された選択肢リストに対して入力値を検証、不正な値の場合は選択肢を含むエラーメッセージを生成 | Restrictions: 型安全性を保つ、選択肢は任意の型をサポート | Success: choicesが正しく機能し、不正な値が拒否され、tests/unit/choices_test.cppが通過する_
 
-- [ ] 18. required引数の処理
+- [x] 18. required引数の処理
   - File: include/argparse/argparse.hpp（Parser内）
   - オプション引数のrequired設定
   - 必須チェックロジック

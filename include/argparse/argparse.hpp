@@ -224,6 +224,70 @@ namespace argparse {
             void swap(AnyValue& other) {
                 std::swap(holder_, other.holder_);
             }
+            
+            // Comparison function for choices validation
+            template<typename T>
+            bool equals(const T& other_value) const {
+                if (!holder_) {
+                    return false;
+                }
+                
+                if (holder_->type() != typeid(T)) {
+                    return false;
+                }
+                
+                try {
+                    return get<T>() == other_value;
+                } catch (...) {
+                    return false;
+                }
+            }
+            
+            // Compare with another AnyValue (same type comparison)
+            bool equals(const AnyValue& other) const {
+                if (!holder_ && !other.holder_) {
+                    return true;  // Both empty
+                }
+                
+                if (!holder_ || !other.holder_) {
+                    return false;  // One empty, one not
+                }
+                
+                if (holder_->type() != other.holder_->type()) {
+                    return false;  // Different types
+                }
+                
+                // For string type (most common case)
+                if (holder_->type() == typeid(std::string)) {
+                    try {
+                        return get<std::string>() == other.get<std::string>();
+                    } catch (...) {
+                        return false;
+                    }
+                }
+                
+                // For int type
+                if (holder_->type() == typeid(int)) {
+                    try {
+                        return get<int>() == other.get<int>();
+                    } catch (...) {
+                        return false;
+                    }
+                }
+                
+                // For double/float type
+                if (holder_->type() == typeid(double)) {
+                    try {
+                        return get<double>() == other.get<double>();
+                    } catch (...) {
+                        return false;
+                    }
+                }
+                
+                // For other types, we can't compare safely without knowing the type
+                // This is a limitation of type erasure
+                return false;
+            }
         };
         
         // TypeConverter: 文字列から各型への変換機能
@@ -818,8 +882,7 @@ namespace argparse {
             if (!definition_.choices.empty()) {
                 bool found = false;
                 for (const auto& choice : definition_.choices) {
-                    if (choice.type() == value.type()) {
-                        // For now, simple type check - full comparison would require operator==
+                    if (choice.equals(value)) {
                         found = true;
                         break;
                     }
@@ -835,6 +898,67 @@ namespace argparse {
             }
             
             return true;
+        }
+        
+        // Generate error message for validation failure
+        std::string get_validation_error_message(const detail::AnyValue& value) const {
+            // Check choices if specified
+            if (!definition_.choices.empty()) {
+                bool found = false;
+                for (const auto& choice : definition_.choices) {
+                    if (choice.equals(value)) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    std::string error_msg = "invalid choice: ";
+                    
+                    // Try to get string representation of the value
+                    try {
+                        if (value.type() == typeid(std::string)) {
+                            error_msg += "'" + value.get<std::string>() + "'";
+                        } else if (value.type() == typeid(int)) {
+                            error_msg += "'" + std::to_string(value.get<int>()) + "'";
+                        } else if (value.type() == typeid(double)) {
+                            error_msg += "'" + std::to_string(value.get<double>()) + "'";
+                        } else {
+                            error_msg += "(value)";
+                        }
+                    } catch (...) {
+                        error_msg += "(value)";
+                    }
+                    
+                    error_msg += " (choose from ";
+                    
+                    // Add choices to error message
+                    for (size_t i = 0; i < definition_.choices.size(); ++i) {
+                        if (i > 0) error_msg += ", ";
+                        error_msg += "'";
+                        
+                        try {
+                            const auto& choice = definition_.choices[i];
+                            if (choice.type() == typeid(std::string)) {
+                                error_msg += choice.get<std::string>();
+                            } else if (choice.type() == typeid(int)) {
+                                error_msg += std::to_string(choice.get<int>());
+                            } else if (choice.type() == typeid(double)) {
+                                error_msg += std::to_string(choice.get<double>());
+                            } else {
+                                error_msg += "?";
+                            }
+                        } catch (...) {
+                            error_msg += "?";
+                        }
+                        
+                        error_msg += "'";
+                    }
+                    error_msg += ")";
+                    return error_msg;
+                }
+            }
+            
+            return "validation failed";
         }
         
     private:
@@ -1443,7 +1567,8 @@ namespace argparse {
                         // 単一値
                         AnyValue value = arg->convert_value(values[0]);
                         if (!arg->validate_value(value)) {
-                            throw std::invalid_argument("Invalid value for argument '" + key + "': " + values[0]);
+                            std::string error_msg = "argument " + key + ": " + arg->get_validation_error_message(value);
+                            throw std::invalid_argument(error_msg);
                         }
                         result.set_raw(key, value);
                     } else {
@@ -1497,7 +1622,8 @@ namespace argparse {
                     try {
                         AnyValue value = arg->convert_value(value_token.value);
                         if (!arg->validate_value(value)) {
-                            throw std::invalid_argument("Invalid value for argument " + token.value + ": " + value_token.value);
+                            std::string error_msg = "argument " + token.value + ": " + arg->get_validation_error_message(value);
+                            throw std::invalid_argument(error_msg);
                         }
                         
                         // 既存のリストに追加、またはリストを作成
@@ -1574,7 +1700,8 @@ namespace argparse {
                             // 単一値の場合
                             AnyValue value = arg->convert_value(values[0]);
                             if (!arg->validate_value(value)) {
-                                throw std::invalid_argument("Invalid value for argument " + token.value + ": " + values[0]);
+                                std::string error_msg = "argument " + token.value + ": " + arg->get_validation_error_message(value);
+                                throw std::invalid_argument(error_msg);
                             }
                             result.set_raw(key, value);
                         } else {

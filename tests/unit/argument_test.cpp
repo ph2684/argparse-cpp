@@ -246,10 +246,9 @@ TEST_F(ArgumentTest, ValidateValueWithChoices) {
     detail::AnyValue valid_value(std::string("json"));
     detail::AnyValue invalid_value(std::string("yaml"));
     
-    // 現在の実装では型チェックのみ（完全な値比較は未実装）
-    // ここでは型が一致することを確認
-    EXPECT_TRUE(arg.validate_value(valid_value));
-    EXPECT_TRUE(arg.validate_value(invalid_value));  // 型は同じなのでtrue
+    // choicesが実装されているので、実際の値比較が行われる
+    EXPECT_TRUE(arg.validate_value(valid_value));   // 有効な値
+    EXPECT_FALSE(arg.validate_value(invalid_value));  // 無効な値
 }
 
 TEST_F(ArgumentTest, ValidateValueWithoutChoices) {

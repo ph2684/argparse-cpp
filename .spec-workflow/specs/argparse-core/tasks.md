@@ -173,7 +173,7 @@ _Prompt: Role: [専門的な開発者の役割] | Task: [コンテキスト参�
   - _Tests: tests/unit/add_argument_group_test.cpp - 新しいグループの作成、グループ名の重複チェック、グループへの参照返却、デフォルトグループの管理のテスト_
   - _Prompt: Role: APIインターフェース実装者 | Task: ArgumentParserにadd_argument_group()メソッドを実装、新しいArgumentGroupを作成して管理、グループへの参照を返してadd_argumentを可能にする | Restrictions: グループ名の重複チェック、メモリ管理に注意 | Success: カスタムグループが作成でき、引数を追加でき、tests/unit/add_argument_group_test.cppが通過する_
 
-- [ ] 17. choices検証の実装
+- [x] 17. choices検証の実装
   - File: include/argparse/argparse.hpp（Argument内）
   - 選択肢リストの設定
   - 値の検証ロジック

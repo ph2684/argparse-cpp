@@ -121,7 +121,7 @@ TEST_F(ArgumentGroupTest, ArgumentParserWithGroups) {
     // Check optional group
     auto opt_group = parser.get_optional_group();
     ASSERT_NE(opt_group, nullptr);
-    EXPECT_EQ(opt_group->title(), "optional arguments");
+    EXPECT_EQ(opt_group->title(), "options");
     EXPECT_GE(opt_group->argument_count(), 2); // -v, --help (possibly more if help is enabled)
     
     // Check custom groups
@@ -165,15 +165,15 @@ TEST_F(ArgumentGroupTest, HelpOutputWithGroups) {
     
     // Check that help output contains group titles
     EXPECT_TRUE(help_output.find("positional arguments:") != std::string::npos);
-    EXPECT_TRUE(help_output.find("optional arguments:") != std::string::npos);
+    EXPECT_TRUE(help_output.find("options:") != std::string::npos);
     EXPECT_TRUE(help_output.find("file options:") != std::string::npos);
     EXPECT_TRUE(help_output.find("Options for file handling") != std::string::npos);
     EXPECT_TRUE(help_output.find("miscellaneous:") != std::string::npos);
     
     // Check that arguments appear under their respective groups
     EXPECT_TRUE(help_output.find("filename") != std::string::npos);
-    EXPECT_TRUE(help_output.find("-i, --input") != std::string::npos);
-    EXPECT_TRUE(help_output.find("-o, --output") != std::string::npos);
+    EXPECT_TRUE(help_output.find("--input, -i") != std::string::npos);
+    EXPECT_TRUE(help_output.find("--output, -o") != std::string::npos);
     EXPECT_TRUE(help_output.find("--debug") != std::string::npos);
 }
 
@@ -289,7 +289,7 @@ TEST_F(ArgumentGroupTest, DefaultGroupManagement) {
     ASSERT_NE(opt_group, nullptr);
     
     EXPECT_EQ(pos_group->title(), "positional arguments");
-    EXPECT_EQ(opt_group->title(), "optional arguments");
+    EXPECT_EQ(opt_group->title(), "options");
     
     // Default groups should be in the groups list
     const auto& groups = parser.get_groups();

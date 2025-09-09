@@ -118,7 +118,7 @@ TEST_F(HelpOptionTest, HelpContentGeneration) {
     EXPECT_NE(help_message.find("This is a test program"), std::string::npos);
     EXPECT_NE(help_message.find("End of help text"), std::string::npos);
     EXPECT_NE(help_message.find("filename"), std::string::npos);
-    EXPECT_NE(help_message.find("-v, --verbose"), std::string::npos);
-    EXPECT_NE(help_message.find("-h, --help"), std::string::npos);
+    EXPECT_NE(help_message.find("--verbose, -v"), std::string::npos);
+    EXPECT_NE(help_message.find("--help, -h"), std::string::npos);
     EXPECT_NE(help_message.find("show this help message and exit"), std::string::npos);
 }

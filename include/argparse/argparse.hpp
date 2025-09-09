@@ -1087,7 +1087,7 @@ namespace argparse {
             
             // デフォルトグループを作成
             positional_group_ = std::make_shared<ArgumentGroup>(this, "positional arguments", "");
-            optional_group_ = std::make_shared<ArgumentGroup>(this, "optional arguments", "");
+            optional_group_ = std::make_shared<ArgumentGroup>(this, "options", "");
             groups_.push_back(positional_group_);
             groups_.push_back(optional_group_);
             
@@ -1990,21 +1990,11 @@ namespace argparse {
             }
         }
         
-        // オプション引数を使用法に追加（ヘルプオプションは除外）
+        // オプション引数を使用法に追加
         for (const auto& arg : optionals) {
             const auto& def = arg->definition();
             const auto& names = arg->get_names();
             if (names.empty()) continue;
-            
-            // ヘルプオプション（--help, -h）は使用法には表示しない
-            bool is_help_option = false;
-            for (const auto& name : names) {
-                if (name == "--help" || name == "-h") {
-                    is_help_option = true;
-                    break;
-                }
-            }
-            if (is_help_option) continue;
             
             // 必須オプションかどうか
             if (def.required) {
@@ -2017,7 +2007,7 @@ namespace argparse {
             oss << names[0];
             
             // metavarまたはnargsに基づいた値表示
-            if (def.action != "store_true" && def.action != "store_false" && def.action != "count") {
+            if (def.action != "store_true" && def.action != "store_false" && def.action != "count" && def.action != "help") {
                 std::string metavar = def.metavar;
                 if (metavar.empty()) {
                     // デフォルトのmetavar生成
@@ -2148,12 +2138,12 @@ namespace argparse {
                         }
                     } else {
                         // オプション引数の場合
-                        // 引数名を短形式優先で並び替え
+                        // 引数名を長形式優先で並び替え
                         std::vector<std::string> sorted_names = names;
                         std::sort(sorted_names.begin(), sorted_names.end(), [](const std::string& a, const std::string& b) {
-                            // 短形式（-x）を長形式（--xxx）より先に
+                            // 長形式（--xxx）を短形式（-x）より先に
                             if (a.length() != b.length()) {
-                                return a.length() < b.length();
+                                return a.length() > b.length();
                             }
                             return a < b;
                         });
@@ -2193,26 +2183,16 @@ namespace argparse {
                             }
                         }
                         
-                        oss << std::left << std::setw(20) << arg_str;
+                        // 引数名が長い場合の処理
+                        if (arg_str.length() >= 20) {
+                            oss << arg_str << "\n" << std::string(24, ' ');
+                        } else {
+                            oss << std::left << std::setw(20) << arg_str;
+                        }
                         
                         // ヘルプテキスト
                         if (!def.help.empty()) {
                             std::string help_text = def.help;
-                            
-                            // デフォルト値を表示
-                            if (!def.default_value.empty() && def.action == "store") {
-                                help_text += " (default: ";
-                                if (def.default_value.type() == typeid(std::string)) {
-                                    help_text += def.default_value.get<std::string>();
-                                } else if (def.default_value.type() == typeid(int)) {
-                                    help_text += std::to_string(def.default_value.get<int>());
-                                } else if (def.default_value.type() == typeid(double)) {
-                                    help_text += std::to_string(def.default_value.get<double>());
-                                } else if (def.default_value.type() == typeid(bool)) {
-                                    help_text += def.default_value.get<bool>() ? "true" : "false";
-                                }
-                                help_text += ")";
-                            }
                             
                             // 折り返し処理
                             size_t max_width = 80 - 24;

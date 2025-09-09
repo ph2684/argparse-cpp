@@ -27,9 +27,9 @@ TEST_F(HelpGeneratorTest, BasicHelpTest) {
         EXPECT_TRUE(help.find("Test program for help generation") != std::string::npos);
         EXPECT_TRUE(help.find("input") != std::string::npos);
         EXPECT_TRUE(help.find("Input file path") != std::string::npos);
-        EXPECT_TRUE(help.find("-v, --verbose") != std::string::npos);
+        EXPECT_TRUE(help.find("--verbose, -v") != std::string::npos);
         EXPECT_TRUE(help.find("Enable verbose output") != std::string::npos);
-        EXPECT_TRUE(help.find("-h, --help") != std::string::npos);
+        EXPECT_TRUE(help.find("--help, -h") != std::string::npos);
         EXPECT_TRUE(help.find("show this help message and exit") != std::string::npos);
     }
 }
@@ -73,11 +73,11 @@ TEST_F(HelpGeneratorTest, ArgumentSectionsTest) {
         
         // Check sections
         EXPECT_TRUE(help.find("positional arguments:") != std::string::npos);
-        EXPECT_TRUE(help.find("optional arguments:") != std::string::npos);
+        EXPECT_TRUE(help.find("options:") != std::string::npos);
         
         // Verify positional arguments are in the right section
         size_t pos_section = help.find("positional arguments:");
-        size_t opt_section = help.find("optional arguments:");
+        size_t opt_section = help.find("options:");
         
         EXPECT_TRUE(pos_section != std::string::npos);
         EXPECT_TRUE(opt_section != std::string::npos);
@@ -165,9 +165,8 @@ TEST_F(HelpGeneratorTest, DefaultValueTest) {
     } catch (const argparse::help_requested& e) {
         std::string help = e.message();
         
-        // Check default values display
-        EXPECT_TRUE(help.find("(default: 30)") != std::string::npos);
-        EXPECT_TRUE(help.find("(default: output.txt)") != std::string::npos);
+        // Check that default values are NOT displayed (Python argparse compatible)
+        EXPECT_TRUE(help.find("(default:") == std::string::npos);
     }
 }
 
@@ -231,7 +230,7 @@ TEST_F(HelpGeneratorTest, EmptyParserTest) {
         // Should still have basic structure
         EXPECT_TRUE(help.find("usage: empty") != std::string::npos);
         EXPECT_TRUE(help.find("Empty parser") != std::string::npos);
-        EXPECT_TRUE(help.find("optional arguments:") != std::string::npos);
-        EXPECT_TRUE(help.find("-h, --help") != std::string::npos);
+        EXPECT_TRUE(help.find("options:") != std::string::npos);
+        EXPECT_TRUE(help.find("--help, -h") != std::string::npos);
     }
 }

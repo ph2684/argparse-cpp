@@ -22,7 +22,7 @@ TEST_F(MetavarTest, CustomMetavarOptionTest) {
         std::string help = e.message();
         
         // Check that custom metavar "N" is used instead of default "COUNT"
-        EXPECT_TRUE(help.find("-c, --count N") != std::string::npos);
+        EXPECT_TRUE(help.find("--count, -c N") != std::string::npos);
         EXPECT_TRUE(help.find("NUMBER") == std::string::npos);
         EXPECT_TRUE(help.find("COUNT") == std::string::npos);
     }
@@ -93,7 +93,7 @@ TEST_F(MetavarTest, MetavarWithStoreTrueTest) {
         std::string help = e.message();
         
         // metavar should not be displayed for store_true actions
-        EXPECT_TRUE(help.find("-v, --verbose") != std::string::npos);
+        EXPECT_TRUE(help.find("--verbose, -v") != std::string::npos);
         EXPECT_TRUE(help.find("IGNORED") == std::string::npos);
         EXPECT_TRUE(help.find("Enable verbose mode") != std::string::npos);
     }
@@ -128,7 +128,7 @@ TEST_F(MetavarTest, MetavarWithCountTest) {
         std::string help = e.message();
         
         // metavar should not be displayed for count actions
-        EXPECT_TRUE(help.find("-v, --verbose") != std::string::npos);
+        EXPECT_TRUE(help.find("--verbose, -v") != std::string::npos);
         EXPECT_TRUE(help.find("IGNORED") == std::string::npos);
     }
 }
@@ -145,7 +145,7 @@ TEST_F(MetavarTest, MetavarWithNargsOptionalTest) {
         std::string help = e.message();
         
         // Check metavar appears in help line
-        EXPECT_TRUE(help.find("-c, --config FILE") != std::string::npos ||
+        EXPECT_TRUE(help.find("--config, -c FILE") != std::string::npos ||
                    help.find("--config FILE") != std::string::npos);
         
         // Check metavar appears correctly in usage line with [FILE]

@@ -247,7 +247,7 @@ _Prompt: Role: [専門的な開発者の役割] | Task: [コンテキスト参�
   - _Tests: examples/basic/hello_world.cppがコンパイル・実行でき、期待通りの動作をする_
   - _Prompt: Role: デベロッパーアドボケート | Task: argparse-cppの最も簡単な使用例を作成、位置引数1つとオプション引数2-3個を含む実用的なhello worldプログラム | Restrictions: 5分で理解できる簡潔さ、コメント付き | Success: 初心者が即座に使い始められ、サンプルプログラムが正しく動作する_
 
-- [-] 24. ドキュメントの作成
+- [x] 24. ドキュメントの作成
   - File: README.md
   - インストール方法
   - 基本的な使い方

@@ -227,6 +227,13 @@ namespace argparse {
                 return *this;
             }
             
+            // Specialized assignment for string literals - converts to std::string
+            AnyValue& operator=(const char* value) {
+                delete holder_;
+                holder_ = new Holder<std::string>(std::string(value));
+                return *this;
+            }
+            
             // Type-safe getter
             template<typename T>
             T& get() {

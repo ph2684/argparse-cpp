@@ -195,6 +195,9 @@ public:
     template<typename T>
     AnyValue(const T& value);
     
+    // 文字列リテラル対応の特殊化
+    AnyValue& operator=(const char* value);
+    
     template<typename T>
     T get() const;
     
@@ -202,6 +205,11 @@ public:
 };
 }
 ```
+
+**重要な実装詳細:**
+- `operator=(const char* value)`は文字列リテラル（`"Hello"`など）を自動的に`std::string`に変換
+- これによりREADMEの例`default_value("Hello")`が直接コンパイル可能
+- C++11のテンプレート推論問題を回避し、Python argparseとの使い勝手の整合性を保持
 
 ## エラー処理
 

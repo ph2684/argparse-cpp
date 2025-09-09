@@ -21,8 +21,8 @@ _Prompt: Role: [専門的な開発者の役割] | Task: [コンテキスト参�
   - テンプレートメソッドの実装
   - Purpose: C++11でstd::any相当の機能を提供
   - _Requirements: 要件6、設計書のAnyValue_
-  - _Tests: tests/unit/any_value_test.cpp - 任意の型の保持・取得、型チェック、コピー・ムーブ、例外処理のテスト_
-  - _Prompt: Role: C++テンプレートメタプログラミング専門家 | Task: argparse::detail名前空間にAnyValueクラスを実装し、型消去技術を使用して任意の型を保持できるようにする、BaseHolderインターフェースとHolder<T>テンプレートクラスを実装 | Restrictions: C++11準拠、std::anyは使用不可、メモリリークを防ぐ | Success: AnyValueが任意の型を安全に保持・取得でき、型チェックが機能し、tests/unit/any_value_test.cppが通過する_
+  - _Tests: tests/unit/any_value_test.cpp - 任意の型の保持・取得、型チェック、コピー・ムーブ、例外処理、文字列リテラル対応のテスト_
+  - _Prompt: Role: C++テンプレートメタプログラミング専門家 | Task: argparse::detail名前空間にAnyValueクラスを実装し、型消去技術を使用して任意の型を保持できるようにする、BaseHolderインターフェースとHolder<T>テンプレートクラスを実装、文字列リテラル対応のoperator=(const char*)を追加 | Restrictions: C++11準拠、std::anyは使用不可、メモリリークを防ぐ、文字列リテラルは自動的にstd::stringに変換 | Success: AnyValueが任意の型を安全に保持・取得でき、型チェックが機能し、文字列リテラル("Hello")が直接動作し、tests/unit/any_value_test.cppが通過する_
 
 - [x] 3. Argumentクラスの基本実装
   - File: include/argparse/argparse.hpp

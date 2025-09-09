@@ -204,7 +204,7 @@ _Prompt: Role: [専門的な開発者の役割] | Task: [コンテキスト参�
   - _Tests: tests/unit/error_message_test.cpp - ArgumentError例外クラス、各エラータイプのメッセージフォーマット、usage付きエラー表示のテスト_
   - _Prompt: Role: エラー処理設計者 | Task: detail名前空間にArgumentError例外クラスを実装、エラータイプごとのメッセージテンプレート、usage行を含むフォーマット済みエラーメッセージを生成 | Restrictions: Python argparseと同様のメッセージ形式、実用的で分かりやすい | Success: エラーが明確で、ユーザーが問題を理解・修正でき、tests/unit/error_message_test.cppが通過する_
 
-- [ ] 20. metavar処理の実装
+- [x] 20. metavar処理の実装
   - File: include/argparse/argparse.hpp（Argument内）
   - metavarの設定と取得
   - ヘルプでの表示処理

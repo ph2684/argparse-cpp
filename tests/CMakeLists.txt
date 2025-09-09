@@ -59,6 +59,7 @@ set(TEST_SOURCES
     unit/choices_test.cpp
     unit/required_test.cpp
     unit/error_message_test.cpp
+    unit/metavar_test.cpp
 )
 
 # テスト実行ファイルを作成

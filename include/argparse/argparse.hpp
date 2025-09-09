@@ -1,5 +1,8 @@
 #pragma once
 
+#ifndef ARGPARSE_HPP_INCLUDED
+#define ARGPARSE_HPP_INCLUDED
+
 /*
  * argparse-cpp: Header-only C++ library for parsing command-line arguments
  * 
@@ -45,3 +48,5 @@ namespace argparse {
     }
     
 } // namespace argparse
+
+#endif // ARGPARSE_HPP_INCLUDED

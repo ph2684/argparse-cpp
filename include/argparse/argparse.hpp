@@ -972,6 +972,15 @@ namespace argparse {
         
         // add_argument_groupメソッド - 新しいグループを作成
         ArgumentGroup& add_argument_group(const std::string& title = "", const std::string& description = "") {
+            // グループ名の重複チェック（空でない場合のみ）
+            if (!title.empty()) {
+                for (const auto& existing_group : groups_) {
+                    if (existing_group && existing_group->title() == title) {
+                        throw std::runtime_error("Argument group with title '" + title + "' already exists");
+                    }
+                }
+            }
+            
             auto group = std::make_shared<ArgumentGroup>(this, title, description);
             groups_.push_back(group);
             return *group;

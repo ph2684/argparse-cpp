@@ -162,7 +162,7 @@ _Prompt: Role: [専門的な開発者の役割] | Task: [コンテキスト参�
   - _Tests: tests/unit/argument_group_test.cpp - グループの作成、タイトルと説明の設定、引数の追加、ヘルプでのグループ表示のテスト_
   - _Prompt: Role: API構造設計者 | Task: ArgumentGroupクラスを実装し、タイトルと説明を持ち、add_argument()でグループ内に引数を追加、HelpGeneratorと連携してグループごとの表示を実現 | Restrictions: デフォルトで位置引数とオプション引数グループを用意 | Success: 引数がグループごとに整理され、ヘルプで分かりやすく表示され、tests/unit/argument_group_test.cppが通過する_
 
-- [ ] 16. add_argument_group()メソッドの実装
+- [x] 16. add_argument_group()メソッドの実装
   - File: include/argparse/argparse.hpp（ArgumentParser内）
   - グループの作成と登録
   - グループへの参照返却

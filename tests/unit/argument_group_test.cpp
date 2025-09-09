@@ -229,3 +229,135 @@ TEST_F(ArgumentGroupTest, EmptyGroups) {
     // Empty groups should not appear in help output
     EXPECT_TRUE(help_output.find("empty group:") == std::string::npos);
 }
+
+// Test duplicate group name detection
+TEST_F(ArgumentGroupTest, DuplicateGroupNameCheck) {
+    ArgumentParser parser("test_prog");
+    
+    // Create first group with title
+    ArgumentGroup& group1 = parser.add_argument_group("database options", "Database connection settings");
+    
+    // Try to create second group with same title - should throw exception
+    EXPECT_THROW({
+        parser.add_argument_group("database options", "Another database group");
+    }, std::runtime_error);
+    
+    // Creating groups with empty titles should be allowed (no conflict)
+    ArgumentGroup& empty_group1 = parser.add_argument_group("", "First empty title group");
+    ArgumentGroup& empty_group2 = parser.add_argument_group("", "Second empty title group");
+    
+    // Different titles should be fine
+    ArgumentGroup& group2 = parser.add_argument_group("network options", "Network configuration");
+    
+    // Check that the allowed groups were created successfully
+    const auto& groups = parser.get_groups();
+    
+    // Should have: positional, optional, database options, empty1, empty2, network options = 6 groups
+    EXPECT_EQ(groups.size(), 6);
+    
+    // Verify specific group titles
+    bool found_db_group = false;
+    bool found_network_group = false;
+    int empty_title_count = 0;
+    
+    for (const auto& group : groups) {
+        if (group->title() == "database options") {
+            found_db_group = true;
+            EXPECT_EQ(group->description(), "Database connection settings");
+        } else if (group->title() == "network options") {
+            found_network_group = true;
+            EXPECT_EQ(group->description(), "Network configuration");
+        } else if (group->title().empty()) {
+            empty_title_count++;
+        }
+    }
+    
+    EXPECT_TRUE(found_db_group);
+    EXPECT_TRUE(found_network_group);
+    EXPECT_EQ(empty_title_count, 2); // Two empty title groups
+}
+
+// Test default group management
+TEST_F(ArgumentGroupTest, DefaultGroupManagement) {
+    ArgumentParser parser("test_prog", "Test default group management");
+    
+    // Check that default groups exist
+    auto pos_group = parser.get_positional_group();
+    auto opt_group = parser.get_optional_group();
+    
+    ASSERT_NE(pos_group, nullptr);
+    ASSERT_NE(opt_group, nullptr);
+    
+    EXPECT_EQ(pos_group->title(), "positional arguments");
+    EXPECT_EQ(opt_group->title(), "optional arguments");
+    
+    // Default groups should be in the groups list
+    const auto& groups = parser.get_groups();
+    EXPECT_GE(groups.size(), 2); // At least positional and optional groups
+    
+    // Add positional argument - should go to positional group
+    parser.add_argument("input_file").help("Input file path");
+    EXPECT_EQ(pos_group->argument_count(), 1);
+    
+    // Add option argument - should go to optional group
+    parser.add_argument("-v", "--verbose").action("store_true").help("Enable verbose mode");
+    
+    // Optional group should have at least the verbose argument (help might also be there)
+    EXPECT_GE(opt_group->argument_count(), 1);
+    
+    // Check that arguments were added to correct groups
+    auto pos_args = pos_group->arguments();
+    EXPECT_FALSE(pos_args.empty());
+    EXPECT_TRUE(pos_args[0]->is_positional());
+    EXPECT_EQ(pos_args[0]->get_name(), "input_file");
+    
+    auto opt_args = opt_group->arguments();
+    EXPECT_FALSE(opt_args.empty());
+    
+    // Find the verbose argument in optional group
+    bool found_verbose = false;
+    for (const auto& arg : opt_args) {
+        if (!arg->is_positional()) {
+            const auto& names = arg->get_names();
+            for (const auto& name : names) {
+                if (name == "-v" || name == "--verbose") {
+                    found_verbose = true;
+                    break;
+                }
+            }
+            if (found_verbose) break;
+        }
+    }
+    EXPECT_TRUE(found_verbose);
+}
+
+// Test argument group reference returns
+TEST_F(ArgumentGroupTest, GroupReferenceReturn) {
+    ArgumentParser parser("test_prog");
+    
+    // Test that add_argument_group returns a reference that can be used immediately
+    ArgumentGroup& custom_group = parser.add_argument_group("custom", "Custom group for testing");
+    
+    // Use the returned reference to add arguments
+    custom_group.add_argument("-x", "--example").help("Example option");
+    custom_group.add_argument("positional_arg").help("Example positional argument");
+    
+    // Verify arguments were added
+    EXPECT_EQ(custom_group.argument_count(), 2);
+    
+    // Verify the arguments are accessible
+    const auto& args = custom_group.arguments();
+    EXPECT_EQ(args.size(), 2);
+    
+    // Check first argument (option)
+    EXPECT_FALSE(args[0]->is_positional());
+    EXPECT_EQ(args[0]->get_names().size(), 2);
+    
+    // Check second argument (positional)
+    EXPECT_TRUE(args[1]->is_positional());
+    EXPECT_EQ(args[1]->get_name(), "positional_arg");
+    
+    // Verify that parser also knows about these arguments
+    const auto& parser_args = parser.get_arguments();
+    EXPECT_GE(parser_args.size(), 2); // At least our 2 arguments (plus possibly help)
+}

@@ -66,7 +66,7 @@ _Prompt: Role: [専門的な開発者の役割] | Task: [コンテキスト参�
   - _Tests: tests/unit/argument_classification_test.cpp - 位置引数の判定、短縮形/長形式の処理、重複チェック、エラーケースのテスト_
   - _Prompt: Role: パーサー実装専門家 | Task: add_argumentメソッド内で引数名から位置引数（-や--で始まらない）とオプション引数を判定し、短縮形（-v）と長形式（--verbose）を適切に処理する実装 | Restrictions: POSIX準拠の引数形式に従う、重複チェックを行う | Success: 位置引数とオプション引数が正しく分類・登録され、tests/unit/argument_classification_test.cppが通過する_
 
-- [ ] 7. Namespaceクラスの実装
+- [x] 7. Namespaceクラスの実装
   - File: include/argparse/argparse.hpp
   - 解析結果を保持する構造
   - get<T>()テンプレートメソッド

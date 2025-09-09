@@ -16,6 +16,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <unordered_map>
 #include <memory>
 #include <stdexcept>
 #include <iostream>
@@ -746,6 +747,129 @@ namespace argparse {
                 }
                 _check_duplicate_argument(name);
             }
+        }
+    };
+    
+    // Namespace class for storing parsed argument values
+    class Namespace {
+    private:
+        std::unordered_map<std::string, detail::AnyValue> values_;
+        
+    public:
+        // Default constructor
+        Namespace() = default;
+        
+        // Copy constructor
+        Namespace(const Namespace& other) : values_(other.values_) {}
+        
+        // Move constructor
+        Namespace(Namespace&& other) : values_(std::move(other.values_)) {}
+        
+        // Copy assignment
+        Namespace& operator=(const Namespace& other) {
+            if (this != &other) {
+                values_ = other.values_;
+            }
+            return *this;
+        }
+        
+        // Move assignment
+        Namespace& operator=(Namespace&& other) {
+            if (this != &other) {
+                values_ = std::move(other.values_);
+            }
+            return *this;
+        }
+        
+        // Set a value by name
+        template<typename T>
+        void set(const std::string& name, const T& value) {
+            values_[name] = detail::AnyValue(value);
+        }
+        
+        // Set a value by name (move version)
+        template<typename T>
+        void set(const std::string& name, T&& value) {
+            values_[name] = detail::AnyValue(std::forward<T>(value));
+        }
+        
+        // Get a value by name with type safety
+        template<typename T>
+        T get(const std::string& name) const {
+            auto it = values_.find(name);
+            if (it == values_.end()) {
+                throw std::runtime_error("Argument '" + name + "' not found");
+            }
+            return it->second.template get<T>();
+        }
+        
+        // Get a value by name with default value
+        template<typename T>
+        T get(const std::string& name, const T& default_value) const {
+            auto it = values_.find(name);
+            if (it == values_.end()) {
+                return default_value;
+            }
+            return it->second.template get<T>();
+        }
+        
+        // Check if a value exists
+        bool has(const std::string& name) const {
+            return values_.find(name) != values_.end();
+        }
+        
+        // Alias for has() for compatibility
+        bool contains(const std::string& name) const {
+            return has(name);
+        }
+        
+        // Get all argument names
+        std::vector<std::string> keys() const {
+            std::vector<std::string> result;
+            result.reserve(values_.size());
+            for (const auto& pair : values_) {
+                result.push_back(pair.first);
+            }
+            return result;
+        }
+        
+        // Get number of stored values
+        size_t size() const {
+            return values_.size();
+        }
+        
+        // Check if empty
+        bool empty() const {
+            return values_.empty();
+        }
+        
+        // Clear all values
+        void clear() {
+            values_.clear();
+        }
+        
+        // Remove a specific value
+        bool remove(const std::string& name) {
+            return values_.erase(name) > 0;
+        }
+        
+        // Access to raw value (for advanced use)
+        const detail::AnyValue& get_raw(const std::string& name) const {
+            auto it = values_.find(name);
+            if (it == values_.end()) {
+                throw std::runtime_error("Argument '" + name + "' not found");
+            }
+            return it->second;
+        }
+        
+        // Set raw value (for advanced use)
+        void set_raw(const std::string& name, const detail::AnyValue& value) {
+            values_[name] = value;
+        }
+        
+        // Set raw value (move version)
+        void set_raw(const std::string& name, detail::AnyValue&& value) {
+            values_[name] = std::move(value);
         }
     };
     

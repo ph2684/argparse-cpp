@@ -58,6 +58,7 @@ set(TEST_SOURCES
     unit/help_option_test.cpp
     unit/choices_test.cpp
     unit/required_test.cpp
+    unit/error_message_test.cpp
 )
 
 # テスト実行ファイルを作成

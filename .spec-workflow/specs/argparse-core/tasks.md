@@ -193,7 +193,7 @@ _Prompt: Role: [専門的な開発者の役割] | Task: [コンテキスト参�
   - _Tests: tests/unit/required_test.cpp - requiredフラグがtrueの引数の必須チェック、未指定時のエラー、デフォルト値がある場合の処理のテスト_
   - _Prompt: Role: 引数検証エキスパート | Task: Parserクラスに必須引数チェックを実装、requiredフラグがtrueの引数が指定されていない場合にエラーを報告、分かりやすいエラーメッセージを生成 | Restrictions: 位置引数は常に必須、デフォルト値がある場合は必須でない | Success: 必須引数が正しくチェックされ、未指定時にエラーになり、tests/unit/required_test.cppが通過する_
 
-- [ ] 19. エラーメッセージシステムの実装
+- [x] 19. エラーメッセージシステムの実装
   - File: include/argparse/argparse.hpp（detail namespace内）
   - ArgumentError例外クラス
   - エラーメッセージフォーマット

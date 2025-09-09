@@ -65,6 +65,69 @@ namespace argparse {
         class Parser;
         class Tokenizer;
         class HelpGenerator;
+        class ArgumentError;
+        class ErrorFormatter;
+        
+        // ArgumentError: Python argparseスタイルのエラー例外クラス
+        class ArgumentError : public std::runtime_error {
+        private:
+            std::string argument_name_;
+            std::string error_message_;
+            
+        public:
+            // Constructor with argument name and error message
+            ArgumentError(const std::string& argument_name, const std::string& error_message)
+                : std::runtime_error(_format_message(argument_name, error_message))
+                , argument_name_(argument_name)
+                , error_message_(error_message) {}
+            
+            // Constructor with only error message (no specific argument)
+            explicit ArgumentError(const std::string& error_message)
+                : std::runtime_error(error_message)
+                , argument_name_("")
+                , error_message_(error_message) {}
+            
+            // Get the argument name that caused the error
+            const std::string& argument_name() const { return argument_name_; }
+            
+            // Get the raw error message (without formatting)
+            const std::string& error_message() const { return error_message_; }
+            
+        private:
+            // Format error message in Python argparse style
+            static std::string _format_message(const std::string& argument_name, const std::string& error_message) {
+                if (argument_name.empty()) {
+                    return error_message;
+                }
+                return "argument " + argument_name + ": " + error_message;
+            }
+        };
+        
+        // ErrorFormatter: エラーメッセージのフォーマッター（実装はArgumentParserクラス定義後）
+        class ErrorFormatter {
+        public:
+            // Format complete error message with usage
+            static std::string format_error(const ArgumentParser& parser, const std::string& error_message);
+            
+            // Format error with usage line
+            static std::string format_error_with_usage(const ArgumentParser& parser, const std::string& error_message);
+            
+            // Format argument-specific error messages
+            static std::string format_argument_error(const std::string& argument_name, const std::string& error_type, const std::string& details = "");
+            
+            // Format choices error message
+            static std::string format_choices_error(const std::string& argument_name, const std::string& invalid_value, const std::vector<std::string>& choices);
+            
+            // Format type conversion error
+            static std::string format_type_error(const std::string& argument_name, const std::string& value, const std::string& expected_type);
+            
+            // Format multiple required arguments error
+            static std::string format_multiple_required_error(const std::vector<std::string>& missing_args);
+            
+        private:
+            // Append usage arguments to stream (simplified version)
+            static void _append_usage_args(std::ostringstream& oss, const ArgumentParser& parser);
+        };
         
         // Type erasure implementation for C++11 (std::any alternative)
         class BaseHolder {
@@ -1165,10 +1228,10 @@ namespace argparse {
         }
         
         // Parse command line arguments (declaration only, implementation after detail::Parser)
-        Namespace parse_args(int argc, char* argv[]);
+        Namespace parse_args(int argc, char* argv[], bool throw_on_error = true);
         
         // Parse from string vector (declaration only, implementation after detail::Parser)
-        Namespace parse_args(const std::vector<std::string>& args);
+        Namespace parse_args(const std::vector<std::string>& args, bool throw_on_error = true);
         
     private:
         // Extract program name from path (removes directory path)
@@ -1515,7 +1578,7 @@ namespace argparse {
             void _handle_positional_argument(const Token& token, Namespace& result, 
                                            size_t& positional_index) {
                 if (positional_index >= positional_args_.size()) {
-                    throw std::runtime_error("Too many positional arguments");
+                    throw ArgumentError("unrecognized arguments: " + token.value);
                 }
                 
                 auto arg = positional_args_[positional_index];
@@ -1586,7 +1649,7 @@ namespace argparse {
             void _handle_option_argument(const Token& token, Namespace& result) {
                 auto it = option_args_.find(token.value);
                 if (it == option_args_.end()) {
-                    throw std::runtime_error("Unknown argument: " + token.value);
+                    throw ArgumentError("unrecognized arguments: " + token.value);
                 }
                 
                 auto arg = it->second;
@@ -1721,21 +1784,38 @@ namespace argparse {
             // 必須引数のチェック
             void _validate_required_arguments(const Namespace& result, 
                                             const std::vector<std::shared_ptr<Argument>>& arguments) {
+                std::vector<std::string> missing_required;
+                std::vector<std::string> missing_positional;
+                
                 for (const auto& arg : arguments) {
                     const auto& def = arg->definition();
                     std::string key = _get_storage_key(arg);
                     
                     // オプション引数でrequiredフラグがtrueの場合
                     if (def.required && !result.has(key)) {
-                        throw std::runtime_error("Required argument missing: " + arg->get_name());
+                        missing_required.push_back(arg->get_name());
                     }
                     
                     // 位置引数は常に必須（nargs="?" "*"の場合を除く）
                     if (arg->is_positional() && def.nargs != -2 && def.nargs != -3) {
                         if (!result.has(key)) {
-                            throw std::runtime_error("Required positional argument missing: " + arg->get_name());
+                            missing_positional.push_back(arg->get_name());
                         }
                     }
+                }
+                
+                // 必須引数のエラー報告
+                if (!missing_required.empty()) {
+                    throw ArgumentError(ErrorFormatter::format_multiple_required_error(missing_required));
+                }
+                
+                if (!missing_positional.empty()) {
+                    std::string message = "the following arguments are required: ";
+                    for (size_t i = 0; i < missing_positional.size(); ++i) {
+                        if (i > 0) message += ", ";
+                        message += missing_positional[i];
+                    }
+                    throw ArgumentError(message);
                 }
             }
             
@@ -2133,6 +2213,143 @@ namespace argparse {
         return oss.str();
     }
     
+    // ErrorFormatter method implementations (after ArgumentParser definition)
+    inline std::string detail::ErrorFormatter::format_error(const ArgumentParser& parser, const std::string& error_message) {
+        std::ostringstream oss;
+        oss << parser.prog() << ": error: " << error_message << "\n";
+        return oss.str();
+    }
+    
+    inline std::string detail::ErrorFormatter::format_error_with_usage(const ArgumentParser& parser, const std::string& error_message) {
+        std::ostringstream oss;
+        
+        // Usage line
+        oss << "usage: " << parser.prog();
+        _append_usage_args(oss, parser);
+        oss << "\n";
+        
+        // Error message
+        oss << parser.prog() << ": error: " << error_message << "\n";
+        
+        return oss.str();
+    }
+    
+    inline std::string detail::ErrorFormatter::format_argument_error(const std::string& argument_name, const std::string& error_type, const std::string& details) {
+        std::string message;
+        
+        if (error_type == "required") {
+            message = "the following arguments are required: " + argument_name;
+        } else if (error_type == "unknown") {
+            message = "unrecognized arguments: " + argument_name;
+        } else if (error_type == "invalid_choice") {
+            message = "argument " + argument_name + ": invalid choice: " + details;
+        } else if (error_type == "type_conversion") {
+            message = "argument " + argument_name + ": invalid " + details;
+        } else if (error_type == "too_few_args") {
+            message = "argument " + argument_name + ": expected " + details + " argument(s)";
+        } else if (error_type == "too_many_args") {
+            message = "argument " + argument_name + ": too many arguments";
+        } else if (error_type == "missing_value") {
+            message = "argument " + argument_name + ": expected one argument";
+        } else {
+            message = "argument " + argument_name + ": " + error_type;
+            if (!details.empty()) {
+                message += ": " + details;
+            }
+        }
+        
+        return message;
+    }
+    
+    inline std::string detail::ErrorFormatter::format_choices_error(const std::string& argument_name, const std::string& invalid_value, const std::vector<std::string>& choices) {
+        std::string message = "argument " + argument_name + ": invalid choice: '" + invalid_value + "'";
+        message += " (choose from ";
+        
+        for (size_t i = 0; i < choices.size(); ++i) {
+            if (i > 0) message += ", ";
+            message += "'" + choices[i] + "'";
+        }
+        message += ")";
+        
+        return message;
+    }
+    
+    inline std::string detail::ErrorFormatter::format_type_error(const std::string& argument_name, const std::string& value, const std::string& expected_type) {
+        return "argument " + argument_name + ": invalid " + expected_type + " value: '" + value + "'";
+    }
+    
+    inline std::string detail::ErrorFormatter::format_multiple_required_error(const std::vector<std::string>& missing_args) {
+        if (missing_args.empty()) {
+            return "required arguments are missing";
+        }
+        
+        std::string message = "the following arguments are required: ";
+        for (size_t i = 0; i < missing_args.size(); ++i) {
+            if (i > 0) message += ", ";
+            message += missing_args[i];
+        }
+        return message;
+    }
+    
+    inline void detail::ErrorFormatter::_append_usage_args(std::ostringstream& oss, const ArgumentParser& parser) {
+        const auto& arguments = parser.get_arguments();
+        
+        // オプション引数（必須でないもの）
+        bool has_optional = false;
+        for (const auto& arg : arguments) {
+            if (!arg->is_positional() && !arg->definition().required) {
+                const auto& names = arg->get_names();
+                bool is_help = false;
+                for (const auto& name : names) {
+                    if (name == "--help" || name == "-h") {
+                        is_help = true;
+                        break;
+                    }
+                }
+                if (!is_help) {
+                    has_optional = true;
+                    break;
+                }
+            }
+        }
+        if (has_optional) {
+            oss << " [options]";
+        }
+        
+        // 必須オプション引数
+        for (const auto& arg : arguments) {
+            if (!arg->is_positional() && arg->definition().required) {
+                const auto& names = arg->get_names();
+                if (!names.empty()) {
+                    oss << " " << names[0];
+                    if (arg->definition().action == "store") {
+                        oss << " " << (arg->definition().metavar.empty() ? "VALUE" : arg->definition().metavar);
+                    }
+                }
+            }
+        }
+        
+        // 位置引数
+        for (const auto& arg : arguments) {
+            if (arg->is_positional()) {
+                const auto& def = arg->definition();
+                std::string name = arg->get_name();
+                std::string metavar = def.metavar.empty() ? name : def.metavar;
+                
+                oss << " ";
+                if (def.nargs == -2) {  // "?"
+                    oss << "[" << metavar << "]";
+                } else if (def.nargs == -3) {  // "*"
+                    oss << "[" << metavar << " ...]";
+                } else if (def.nargs == -4) {  // "+"
+                    oss << metavar << " [" << metavar << " ...]";
+                } else {
+                    oss << metavar;
+                }
+            }
+        }
+    }
+    
     // ArgumentGroup method implementations (after ArgumentParser class definition)
     inline Argument& ArgumentGroup::add_argument(const std::string& name) {
         std::vector<std::string> names = {name};
@@ -2179,7 +2396,7 @@ namespace argparse {
     }
     
     // ArgumentParser parse_args method implementations
-    inline Namespace ArgumentParser::parse_args(int argc, char* argv[]) {
+    inline Namespace ArgumentParser::parse_args(int argc, char* argv[], bool throw_on_error) {
         // Set program name from argv[0] if not already set (default or empty)
         if ((prog_ == "program" || prog_.empty()) && argc > 0) {
             prog_ = _extract_prog_name(std::string(argv[0]));
@@ -2189,22 +2406,68 @@ namespace argparse {
             detail::Parser parser;
             return parser.parse(argc, argv, arguments_);
         } catch (const help_requested&) {
-            // Generate and display help message, then exit
+            // Generate and display help message, then exit (or throw for tests)
             std::string help_message = detail::HelpGenerator::generate_help(*this);
-            std::cout << help_message << std::endl;
-            std::exit(0);
+            if (throw_on_error) {
+                throw help_requested(help_message);  // Throw help_requested with message for tests
+            } else {
+                std::cout << help_message << std::endl;
+                std::exit(0);
+            }
+        } catch (const detail::ArgumentError& e) {
+            if (throw_on_error) {
+                // For tests: convert ArgumentError to std::runtime_error to maintain compatibility
+                throw std::runtime_error(e.what());
+            } else {
+                // Format error with usage and display
+                std::string error_message = detail::ErrorFormatter::format_error_with_usage(*this, e.what());
+                std::cerr << error_message;
+                std::exit(2);
+            }
+        } catch (const std::invalid_argument& e) {
+            if (throw_on_error) {
+                throw;  // Re-throw for tests
+            } else {
+                // Handle type conversion and validation errors
+                std::string error_message = detail::ErrorFormatter::format_error_with_usage(*this, e.what());
+                std::cerr << error_message;
+                std::exit(2);
+            }
         }
     }
     
-    inline Namespace ArgumentParser::parse_args(const std::vector<std::string>& args) {
+    inline Namespace ArgumentParser::parse_args(const std::vector<std::string>& args, bool throw_on_error) {
         try {
             detail::Parser parser;
             return parser.parse(args, arguments_);
         } catch (const help_requested&) {
-            // Generate and display help message, then exit
+            // Generate and display help message, then exit (or throw for tests)
             std::string help_message = detail::HelpGenerator::generate_help(*this);
-            std::cout << help_message << std::endl;
-            std::exit(0);
+            if (throw_on_error) {
+                throw help_requested(help_message);  // Throw help_requested with message for tests
+            } else {
+                std::cout << help_message << std::endl;
+                std::exit(0);
+            }
+        } catch (const detail::ArgumentError& e) {
+            if (throw_on_error) {
+                // For tests: convert ArgumentError to std::runtime_error to maintain compatibility
+                throw std::runtime_error(e.what());
+            } else {
+                // Format error with usage and display
+                std::string error_message = detail::ErrorFormatter::format_error_with_usage(*this, e.what());
+                std::cerr << error_message;
+                std::exit(2);
+            }
+        } catch (const std::invalid_argument& e) {
+            if (throw_on_error) {
+                throw;  // Re-throw for tests
+            } else {
+                // Handle type conversion and validation errors
+                std::string error_message = detail::ErrorFormatter::format_error_with_usage(*this, e.what());
+                std::cerr << error_message;
+                std::exit(2);
+            }
         }
     }
     

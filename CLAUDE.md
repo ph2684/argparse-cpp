@@ -131,6 +131,7 @@ auto str = value.get<std::string>();
 ### テスト実行方針
 - **Google Test使用**: CMakeのFetchContentで自動ダウンロード・ビルド
 - **cdコマンド禁止**: AIの動作安定化のためカレントディレクトリ変更は避ける。`cmake -B tests/build -S tests`、`cmake --build tests/build`、`ctest --test-dir tests/build`を使用する
+- **破壊的変更の検知**: 過去のものを含めて、すべてのテストが通過する必要があります。過去のテストが失敗した場合、コードに破壊的変更が加わっている可能性があり、慎重な確認と修正が必要です。新機能の実装時は既存のテストを必ず実行し、全て成功することを確認してください
 
 ## ファイル構造（実装予定）
 

@@ -633,6 +633,53 @@ namespace argparse {
             : action("store"), type_name("string"), nargs(1), required(false) {}
     };
     
+    // ArgumentGroup class for grouping related arguments
+    class ArgumentGroup {
+        friend class ArgumentParser;
+        
+    private:
+        std::string title_;
+        std::string description_;
+        std::vector<std::shared_ptr<Argument>> arguments_;
+        ArgumentParser* parser_;
+        
+    public:
+        // Constructor
+        ArgumentGroup(const std::string& title = "", const std::string& description = "")
+            : title_(title), description_(description), parser_(nullptr) {}
+            
+        // Constructor with parser reference
+        ArgumentGroup(ArgumentParser* parser, const std::string& title = "", const std::string& description = "")
+            : title_(title), description_(description), parser_(parser) {}
+        
+        // Getter methods
+        const std::string& title() const { return title_; }
+        const std::string& description() const { return description_; }
+        const std::vector<std::shared_ptr<Argument>>& arguments() const { return arguments_; }
+        
+        // Add argument to this group - position argument version (implementation after ArgumentParser definition)
+        Argument& add_argument(const std::string& name);
+        
+        // Add argument to this group - option argument version (short and long names)
+        Argument& add_argument(const std::string& short_name, const std::string& long_name);
+        
+        // Add argument to this group - multiple names version
+        Argument& add_argument(const std::vector<std::string>& names);
+        
+        // Get number of arguments in this group
+        size_t argument_count() const {
+            return arguments_.size();
+        }
+        
+        // Check if group has any arguments
+        bool empty() const {
+            return arguments_.empty();
+        }
+        
+        // Find argument by name (implementation after Argument class definition)
+        std::shared_ptr<Argument> find_argument(const std::string& name) const;
+    };
+
     // Argument class for managing individual argument definitions
     class Argument {
     private:
@@ -804,8 +851,22 @@ namespace argparse {
         }
     };
     
+    // ArgumentGroup method implementations (after Argument class definition)
+    inline std::shared_ptr<Argument> ArgumentGroup::find_argument(const std::string& name) const {
+        for (const auto& arg : arguments_) {
+            for (const auto& arg_name : arg->get_names()) {
+                if (arg_name == name) {
+                    return arg;
+                }
+            }
+        }
+        return nullptr;
+    }
+    
     // ArgumentParser: メインパーサークラス
     class ArgumentParser {
+        friend class ArgumentGroup;
+        
     private:
         std::string prog_;
         std::string description_;
@@ -815,6 +876,9 @@ namespace argparse {
         
         std::vector<std::shared_ptr<Argument>> arguments_;
         std::map<std::string, std::shared_ptr<Argument>> argument_map_;
+        std::vector<std::shared_ptr<ArgumentGroup>> groups_;
+        std::shared_ptr<ArgumentGroup> positional_group_;
+        std::shared_ptr<ArgumentGroup> optional_group_;
         
     public:
         // コンストラクタ
@@ -826,6 +890,12 @@ namespace argparse {
             
             // prog が空の場合は"program"をデフォルトとして設定
             // parse_argsでargv[0]から上書きされる場合がある
+            
+            // デフォルトグループを作成
+            positional_group_ = std::make_shared<ArgumentGroup>(this, "positional arguments", "");
+            optional_group_ = std::make_shared<ArgumentGroup>(this, "optional arguments", "");
+            groups_.push_back(positional_group_);
+            groups_.push_back(optional_group_);
             
             // --help オプションを自動追加
             if (add_help_) {
@@ -844,6 +914,15 @@ namespace argparse {
             // 引数名をマップに登録（位置引数かオプション引数かに関わらず）
             argument_map_[name] = arg;
             
+            // 適切なデフォルトグループに追加
+            if (name.empty() || name[0] != '-') {
+                // 位置引数の場合
+                positional_group_->arguments_.push_back(arg);
+            } else {
+                // オプション引数の場合
+                optional_group_->arguments_.push_back(arg);
+            }
+            
             return *arg;
         }
         
@@ -858,6 +937,9 @@ namespace argparse {
             // 両方の名前をマップに登録
             argument_map_[short_name] = arg;
             argument_map_[long_name] = arg;
+            
+            // オプション引数をoptional_groupに追加
+            optional_group_->arguments_.push_back(arg);
             
             return *arg;
         }
@@ -874,7 +956,25 @@ namespace argparse {
                 argument_map_[name] = arg;
             }
             
+            // 適切なデフォルトグループに追加
+            if (!names.empty()) {
+                if (names[0].empty() || names[0][0] != '-') {
+                    // 位置引数の場合
+                    positional_group_->arguments_.push_back(arg);
+                } else {
+                    // オプション引数の場合
+                    optional_group_->arguments_.push_back(arg);
+                }
+            }
+            
             return *arg;
+        }
+        
+        // add_argument_groupメソッド - 新しいグループを作成
+        ArgumentGroup& add_argument_group(const std::string& title = "", const std::string& description = "") {
+            auto group = std::make_shared<ArgumentGroup>(this, title, description);
+            groups_.push_back(group);
+            return *group;
         }
         
         // Getter methods
@@ -914,6 +1014,21 @@ namespace argparse {
         // Check if this parser has help enabled
         bool help_enabled() const {
             return add_help_;
+        }
+        
+        // Get all argument groups
+        const std::vector<std::shared_ptr<ArgumentGroup>>& get_groups() const {
+            return groups_;
+        }
+        
+        // Get positional arguments group
+        std::shared_ptr<ArgumentGroup> get_positional_group() const {
+            return positional_group_;
+        }
+        
+        // Get optional arguments group
+        std::shared_ptr<ArgumentGroup> get_optional_group() const {
+            return optional_group_;
         }
         
         // Parse command line arguments (declaration only, implementation after detail::Parser)
@@ -1026,6 +1141,11 @@ namespace argparse {
             arguments_.push_back(help_arg);
             argument_map_["--help"] = help_arg;
             argument_map_["-h"] = help_arg;
+            
+            // オプショナルグループに追加
+            if (optional_group_) {
+                optional_group_->arguments_.push_back(help_arg);
+            }
         }
     };
     
@@ -1717,142 +1837,147 @@ namespace argparse {
             oss << "\n" << parser.description() << "\n";
         }
         
-        // Positional arguments section
-        if (!positionals.empty()) {
-            oss << "\npositional arguments:\n";
-            for (const auto& arg : positionals) {
-                const auto& def = arg->definition();
-                std::string name = arg->get_name();
-                std::string metavar = def.metavar.empty() ? name : def.metavar;
+        // ArgumentGroups section - display all groups with their arguments
+        const auto& groups = parser.get_groups();
+        for (const auto& group : groups) {
+            if (group && !group->empty()) {
+                std::string group_title = group->title();
+                if (group_title.empty()) {
+                    group_title = "arguments";
+                }
                 
-                // フォーマット: 名前を左寄せ、説明を右側に
-                oss << "  ";
-                std::string arg_str = metavar;
-                oss << std::left << std::setw(20) << arg_str;
+                oss << "\n" << group_title << ":\n";
+                if (!group->description().empty()) {
+                    oss << "  " << group->description() << "\n";
+                }
                 
-                if (!def.help.empty()) {
-                    // ヘルプテキストを折り返し（80文字幅を考慮）
-                    std::string help_text = def.help;
-                    size_t max_width = 80 - 24;  // 80文字 - インデント - 名前の幅
+                const auto& group_args = group->arguments();
+                for (const auto& arg : group_args) {
+                    const auto& def = arg->definition();
+                    const auto& names = arg->get_names();
+                    if (names.empty()) continue;
                     
-                    if (help_text.length() <= max_width) {
-                        oss << help_text;
+                    oss << "  ";
+                    
+                    if (arg->is_positional()) {
+                        // 位置引数の場合
+                        std::string name = arg->get_name();
+                        std::string metavar = def.metavar.empty() ? name : def.metavar;
+                        
+                        std::string arg_str = metavar;
+                        oss << std::left << std::setw(20) << arg_str;
+                        
+                        if (!def.help.empty()) {
+                            // ヘルプテキストを折り返し（80文字幅を考慮）
+                            std::string help_text = def.help;
+                            size_t max_width = 80 - 24;  // 80文字 - インデント - 名前の幅
+                            
+                            if (help_text.length() <= max_width) {
+                                oss << help_text;
+                            } else {
+                                // 長いヘルプテキストの折り返し処理
+                                size_t pos = 0;
+                                bool first_line = true;
+                                while (pos < help_text.length()) {
+                                    if (!first_line) {
+                                        oss << "\n" << std::string(24, ' ');  // 24文字のインデント
+                                    }
+                                    size_t line_length = std::min(max_width, help_text.length() - pos);
+                                    oss << help_text.substr(pos, line_length);
+                                    pos += line_length;
+                                    first_line = false;
+                                }
+                            }
+                        }
                     } else {
-                        // 長いヘルプテキストの折り返し処理
-                        size_t pos = 0;
-                        bool first_line = true;
-                        while (pos < help_text.length()) {
-                            if (!first_line) {
-                                oss << "\n" << std::string(24, ' ');  // 24文字のインデント
+                        // オプション引数の場合
+                        // 引数名を短形式優先で並び替え
+                        std::vector<std::string> sorted_names = names;
+                        std::sort(sorted_names.begin(), sorted_names.end(), [](const std::string& a, const std::string& b) {
+                            // 短形式（-x）を長形式（--xxx）より先に
+                            if (a.length() != b.length()) {
+                                return a.length() < b.length();
                             }
-                            size_t line_length = std::min(max_width, help_text.length() - pos);
-                            oss << help_text.substr(pos, line_length);
-                            pos += line_length;
-                            first_line = false;
+                            return a < b;
+                        });
+                        
+                        // 引数名とmetavarの組み立て
+                        std::string arg_str;
+                        for (size_t i = 0; i < sorted_names.size(); ++i) {
+                            if (i > 0) arg_str += ", ";
+                            arg_str += sorted_names[i];
                         }
-                    }
-                }
-                oss << "\n";
-            }
-        }
-        
-        // Optional arguments section
-        if (!optionals.empty() || true) {  // 常にオプション引数セクションを表示
-            oss << "\noptional arguments:\n";
-            
-            // 全てのオプション引数を表示（ヘルプ引数も含む）
-            for (const auto& arg : optionals) {
-                const auto& def = arg->definition();
-                const auto& names = arg->get_names();
-                if (names.empty()) continue;
-                
-                oss << "  ";
-                
-                // 引数名を短形式優先で並び替え
-                std::vector<std::string> sorted_names = names;
-                std::sort(sorted_names.begin(), sorted_names.end(), [](const std::string& a, const std::string& b) {
-                    // 短形式（-x）を長形式（--xxx）より先に
-                    if (a.length() != b.length()) {
-                        return a.length() < b.length();
-                    }
-                    return a < b;
-                });
-                
-                // 引数名とmetavarの組み立て
-                std::string arg_str;
-                for (size_t i = 0; i < sorted_names.size(); ++i) {
-                    if (i > 0) arg_str += ", ";
-                    arg_str += sorted_names[i];
-                }
-                
-                // metavarを追加（action次第）
-                if (def.action != "store_true" && def.action != "store_false" && def.action != "count" && def.action != "help") {
-                    std::string metavar = def.metavar;
-                    if (metavar.empty()) {
-                        // デフォルトのmetavar生成
-                        for (const auto& name : sorted_names) {
-                            if (name.length() > 2 && name.substr(0, 2) == "--") {
-                                metavar = name.substr(2);
-                                break;
+                        
+                        // metavarを追加（action次第）
+                        if (def.action != "store_true" && def.action != "store_false" && def.action != "count" && def.action != "help") {
+                            std::string metavar = def.metavar;
+                            if (metavar.empty()) {
+                                // デフォルトのmetavar生成
+                                for (const auto& name : sorted_names) {
+                                    if (name.length() > 2 && name.substr(0, 2) == "--") {
+                                        metavar = name.substr(2);
+                                        break;
+                                    }
+                                }
+                                if (metavar.empty() && !sorted_names.empty()) {
+                                    metavar = sorted_names[0];
+                                    if (metavar.length() > 1 && metavar[0] == '-') {
+                                        metavar = metavar.substr(1);
+                                    }
+                                }
+                                // 大文字に変換
+                                for (char& c : metavar) {
+                                    c = std::toupper(c);
+                                }
+                            }
+                            
+                            if (!metavar.empty()) {
+                                arg_str += " " + metavar;
                             }
                         }
-                        if (metavar.empty() && !sorted_names.empty()) {
-                            metavar = sorted_names[0];
-                            if (metavar.length() > 1 && metavar[0] == '-') {
-                                metavar = metavar.substr(1);
+                        
+                        oss << std::left << std::setw(20) << arg_str;
+                        
+                        // ヘルプテキスト
+                        if (!def.help.empty()) {
+                            std::string help_text = def.help;
+                            
+                            // デフォルト値を表示
+                            if (!def.default_value.empty() && def.action == "store") {
+                                help_text += " (default: ";
+                                if (def.default_value.type() == typeid(std::string)) {
+                                    help_text += def.default_value.get<std::string>();
+                                } else if (def.default_value.type() == typeid(int)) {
+                                    help_text += std::to_string(def.default_value.get<int>());
+                                } else if (def.default_value.type() == typeid(double)) {
+                                    help_text += std::to_string(def.default_value.get<double>());
+                                } else if (def.default_value.type() == typeid(bool)) {
+                                    help_text += def.default_value.get<bool>() ? "true" : "false";
+                                }
+                                help_text += ")";
+                            }
+                            
+                            // 折り返し処理
+                            size_t max_width = 80 - 24;
+                            if (help_text.length() <= max_width) {
+                                oss << help_text;
+                            } else {
+                                size_t pos = 0;
+                                bool first_line = true;
+                                while (pos < help_text.length()) {
+                                    if (!first_line) {
+                                        oss << "\n" << std::string(24, ' ');
+                                    }
+                                    size_t line_length = std::min(max_width, help_text.length() - pos);
+                                    oss << help_text.substr(pos, line_length);
+                                    pos += line_length;
+                                    first_line = false;
+                                }
                             }
                         }
-                        // 大文字に変換
-                        for (char& c : metavar) {
-                            c = std::toupper(c);
-                        }
                     }
-                    
-                    if (!metavar.empty()) {
-                        arg_str += " " + metavar;
-                    }
+                    oss << "\n";
                 }
-                
-                oss << std::left << std::setw(20) << arg_str;
-                
-                // ヘルプテキスト
-                if (!def.help.empty()) {
-                    std::string help_text = def.help;
-                    
-                    // デフォルト値を表示
-                    if (!def.default_value.empty() && def.action == "store") {
-                        help_text += " (default: ";
-                        if (def.default_value.type() == typeid(std::string)) {
-                            help_text += def.default_value.get<std::string>();
-                        } else if (def.default_value.type() == typeid(int)) {
-                            help_text += std::to_string(def.default_value.get<int>());
-                        } else if (def.default_value.type() == typeid(double)) {
-                            help_text += std::to_string(def.default_value.get<double>());
-                        } else if (def.default_value.type() == typeid(bool)) {
-                            help_text += def.default_value.get<bool>() ? "true" : "false";
-                        }
-                        help_text += ")";
-                    }
-                    
-                    // 折り返し処理
-                    size_t max_width = 80 - 24;
-                    if (help_text.length() <= max_width) {
-                        oss << help_text;
-                    } else {
-                        size_t pos = 0;
-                        bool first_line = true;
-                        while (pos < help_text.length()) {
-                            if (!first_line) {
-                                oss << "\n" << std::string(24, ' ');
-                            }
-                            size_t line_length = std::min(max_width, help_text.length() - pos);
-                            oss << help_text.substr(pos, line_length);
-                            pos += line_length;
-                            first_line = false;
-                        }
-                    }
-                }
-                oss << "\n";
             }
         }
         
@@ -1862,6 +1987,51 @@ namespace argparse {
         }
         
         return oss.str();
+    }
+    
+    // ArgumentGroup method implementations (after ArgumentParser class definition)
+    inline Argument& ArgumentGroup::add_argument(const std::string& name) {
+        std::vector<std::string> names = {name};
+        auto arg = std::make_shared<Argument>(name);
+        arguments_.push_back(arg);
+        
+        // ArgumentParserにも引数を追加
+        if (parser_) {
+            parser_->arguments_.push_back(arg);
+            parser_->argument_map_[name] = arg;
+        }
+        
+        return *arg;
+    }
+    
+    inline Argument& ArgumentGroup::add_argument(const std::string& short_name, const std::string& long_name) {
+        std::vector<std::string> names = {short_name, long_name};
+        auto arg = std::make_shared<Argument>(names);
+        arguments_.push_back(arg);
+        
+        // ArgumentParserにも引数を追加
+        if (parser_) {
+            parser_->arguments_.push_back(arg);
+            parser_->argument_map_[short_name] = arg;
+            parser_->argument_map_[long_name] = arg;
+        }
+        
+        return *arg;
+    }
+    
+    inline Argument& ArgumentGroup::add_argument(const std::vector<std::string>& names) {
+        auto arg = std::make_shared<Argument>(names);
+        arguments_.push_back(arg);
+        
+        // ArgumentParserにも引数を追加
+        if (parser_) {
+            parser_->arguments_.push_back(arg);
+            for (const auto& name : names) {
+                parser_->argument_map_[name] = arg;
+            }
+        }
+        
+        return *arg;
     }
     
     // ArgumentParser parse_args method implementations

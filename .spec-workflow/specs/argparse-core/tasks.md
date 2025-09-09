@@ -151,7 +151,7 @@ _Prompt: Role: [専門的な開発者の役割] | Task: [コンテキスト参�
   - _Tests: tests/unit/help_option_test.cpp - --helpと-hの自動追加、ヘルプ表示、add_help=falseでの無効化、他の引数との優先度のテスト_
   - _Prompt: Role: CLI UX専門家 | Task: ArgumentParserにadd_helpパラメータを追加（デフォルトtrue）、--helpと-hを自動的に追加し、指定時にヘルプを表示してexit(0)する処理を実装 | Restrictions: add_help=falseで無効化可能、他の引数より優先 | Success: --helpが自動的に機能し、ヘルプが表示され、tests/unit/help_option_test.cppが通過する_
 
-- [ ] 15. ArgumentGroupクラスの実装
+- [x] 15. ArgumentGroupクラスの実装
   - File: include/argparse/argparse.hpp
   - グループの作成と管理
   - グループへの引数追加

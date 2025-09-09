@@ -49,6 +49,7 @@ set(TEST_SOURCES
     unit/argument_classification_test.cpp
     unit/namespace_test.cpp
     unit/tokenizer_test.cpp
+    unit/parser_test.cpp
 )
 
 # テスト実行ファイルを作成

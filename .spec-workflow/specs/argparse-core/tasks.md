@@ -87,7 +87,7 @@ _Prompt: Role: [専門的な開発者の役割] | Task: [コンテキスト参�
   - _Tests: tests/unit/tokenizer_test.cpp - 基本的なトークン化、--key=valueの処理、引用符付き文字列、--による引数終了のテスト_
   - _Prompt: Role: パーサー実装エキスパート | Task: detail名前空間にTokenizerクラスを実装し、argv配列を解析可能なトークンに分割、--key=valueや引用符付き文字列を適切に処理 | Restrictions: POSIX準拠、--で引数終了を認識 | Success: 複雑な引数形式が正しくトークン化され、tests/unit/tokenizer_test.cppが通過する_
 
-- [ ] 9. Parserクラスの基本実装
+- [x] 9. Parserクラスの基本実装
   - File: include/argparse/argparse.hpp（detail namespace内）
   - トークンと引数のマッチング
   - 位置引数の順序処理

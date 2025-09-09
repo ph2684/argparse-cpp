@@ -876,6 +876,12 @@ namespace argparse {
             return add_help_;
         }
         
+        // Parse command line arguments (declaration only, implementation after detail::Parser)
+        Namespace parse_args(int argc, char* argv[]);
+        
+        // Parse from string vector (declaration only, implementation after detail::Parser)
+        Namespace parse_args(const std::vector<std::string>& args);
+        
     private:
         // Extract program name from path (removes directory path)
         std::string _extract_prog_name(const std::string& argv0) const {
@@ -1087,6 +1093,233 @@ namespace argparse {
             values_[name] = std::move(value);
         }
     };
+    
+    namespace detail {
+        // Parser: コマンドライン引数の解析ロジック
+        class Parser {
+        private:
+            Tokenizer tokenizer_;
+            std::vector<std::shared_ptr<Argument>> positional_args_;
+            std::map<std::string, std::shared_ptr<Argument>> option_args_;
+            
+        public:
+            // Constructor
+            Parser() = default;
+            
+            // メイン解析メソッド
+            Namespace parse(int argc, char* argv[], const std::vector<std::shared_ptr<Argument>>& arguments) {
+                std::vector<std::string> args;
+                for (int i = 1; i < argc; ++i) {  // Skip program name
+                    args.push_back(std::string(argv[i]));
+                }
+                return parse(args, arguments);
+            }
+            
+            // string配列版の解析メソッド
+            Namespace parse(const std::vector<std::string>& args, 
+                          const std::vector<std::shared_ptr<Argument>>& arguments) {
+                
+                // 引数をタイプ別に分類
+                _classify_arguments(arguments);
+                
+                // トークン化
+                tokenizer_.tokenize(args);
+                
+                // 結果を保持するNamespace
+                Namespace result;
+                
+                // デフォルト値を設定
+                _set_default_values(result, arguments);
+                
+                // 位置引数のインデックス
+                size_t positional_index = 0;
+                
+                // トークンを順次処理
+                while (tokenizer_.has_next()) {
+                    Token token = tokenizer_.next();
+                    
+                    switch (token.type) {
+                        case Token::POSITIONAL:
+                            _handle_positional_argument(token, result, positional_index);
+                            break;
+                            
+                        case Token::SHORT_OPTION:
+                        case Token::LONG_OPTION:
+                            _handle_option_argument(token, result);
+                            break;
+                            
+                        case Token::END_OPTIONS:
+                            // "--" 以降はすべて位置引数として処理
+                            while (tokenizer_.has_next()) {
+                                Token pos_token = tokenizer_.next();
+                                if (pos_token.type == Token::POSITIONAL) {
+                                    _handle_positional_argument(pos_token, result, positional_index);
+                                }
+                            }
+                            break;
+                            
+                        case Token::OPTION_VALUE:
+                            // このケースは通常 _handle_option_argument で処理される
+                            break;
+                    }
+                }
+                
+                // 必須引数のチェック
+                _validate_required_arguments(result, arguments);
+                
+                return result;
+            }
+            
+        private:
+            // 引数を位置引数とオプション引数に分類
+            void _classify_arguments(const std::vector<std::shared_ptr<Argument>>& arguments) {
+                positional_args_.clear();
+                option_args_.clear();
+                
+                for (const auto& arg : arguments) {
+                    if (arg->is_positional()) {
+                        positional_args_.push_back(arg);
+                    } else {
+                        // オプション引数は全ての名前でマップに登録
+                        for (const auto& name : arg->get_names()) {
+                            option_args_[name] = arg;
+                        }
+                    }
+                }
+            }
+            
+            // デフォルト値を設定
+            void _set_default_values(Namespace& result, 
+                                   const std::vector<std::shared_ptr<Argument>>& arguments) {
+                for (const auto& arg : arguments) {
+                    const auto& def = arg->definition();
+                    if (!def.default_value.empty()) {
+                        std::string key = _get_storage_key(arg);
+                        result.set_raw(key, def.default_value);
+                    }
+                }
+            }
+            
+            // 位置引数の処理
+            void _handle_positional_argument(const Token& token, Namespace& result, 
+                                           size_t& positional_index) {
+                if (positional_index >= positional_args_.size()) {
+                    throw std::runtime_error("Too many positional arguments");
+                }
+                
+                auto arg = positional_args_[positional_index];
+                std::string key = _get_storage_key(arg);
+                
+                try {
+                    AnyValue value = arg->convert_value(token.value);
+                    if (!arg->validate_value(value)) {
+                        throw std::invalid_argument("Invalid value for argument '" + key + "': " + token.value);
+                    }
+                    result.set_raw(key, value);
+                    ++positional_index;
+                } catch (const std::exception& e) {
+                    throw std::invalid_argument("Error parsing positional argument '" + key + "': " + e.what());
+                }
+            }
+            
+            // オプション引数の処理
+            void _handle_option_argument(const Token& token, Namespace& result) {
+                auto it = option_args_.find(token.value);
+                if (it == option_args_.end()) {
+                    throw std::runtime_error("Unknown argument: " + token.value);
+                }
+                
+                auto arg = it->second;
+                const auto& def = arg->definition();
+                std::string key = _get_storage_key(arg);
+                
+                // actionに基づく処理
+                if (def.action == "store_true") {
+                    result.set(key, true);
+                } else if (def.action == "store_false") {
+                    result.set(key, false);
+                } else if (def.action == "store" || def.action.empty()) {
+                    // 値が必要な場合
+                    if (!tokenizer_.has_next()) {
+                        throw std::runtime_error("Argument " + token.value + " requires a value");
+                    }
+                    
+                    Token value_token = tokenizer_.next();
+                    if (value_token.type != Token::OPTION_VALUE && value_token.type != Token::POSITIONAL) {
+                        throw std::runtime_error("Argument " + token.value + " requires a value");
+                    }
+                    
+                    try {
+                        AnyValue value = arg->convert_value(value_token.value);
+                        if (!arg->validate_value(value)) {
+                            throw std::invalid_argument("Invalid value for argument " + token.value + ": " + value_token.value);
+                        }
+                        result.set_raw(key, value);
+                    } catch (const std::exception& e) {
+                        throw std::invalid_argument("Error parsing argument " + token.value + ": " + e.what());
+                    }
+                } else {
+                    throw std::runtime_error("Unsupported action: " + def.action);
+                }
+            }
+            
+            // 必須引数のチェック
+            void _validate_required_arguments(const Namespace& result, 
+                                            const std::vector<std::shared_ptr<Argument>>& arguments) {
+                for (const auto& arg : arguments) {
+                    if (arg->definition().required) {
+                        std::string key = _get_storage_key(arg);
+                        if (!result.has(key)) {
+                            throw std::runtime_error("Required argument missing: " + arg->get_name());
+                        }
+                    }
+                }
+            }
+            
+            // 引数の保存キーを取得（位置引数は名前、オプション引数は主要名前）
+            std::string _get_storage_key(const std::shared_ptr<Argument>& arg) const {
+                const auto& names = arg->get_names();
+                if (names.empty()) {
+                    return "unnamed";
+                }
+                
+                if (arg->is_positional()) {
+                    return names[0];
+                }
+                
+                // オプション引数の場合、長形式を優先
+                for (const auto& name : names) {
+                    if (name.length() > 2 && name.substr(0, 2) == "--") {
+                        return name.substr(2);  // "--" を除去
+                    }
+                }
+                
+                // 長形式がない場合は短形式を使用
+                std::string short_name = names[0];
+                if (short_name.length() >= 2 && short_name[0] == '-') {
+                    return short_name.substr(1);  // "-" を除去
+                }
+                
+                return names[0];
+            }
+        };
+    } // namespace detail
+    
+    // ArgumentParser parse_args method implementations
+    inline Namespace ArgumentParser::parse_args(int argc, char* argv[]) {
+        // Set program name from argv[0] if not already set
+        if (prog_ == "program" && argc > 0) {
+            prog_ = _extract_prog_name(std::string(argv[0]));
+        }
+        
+        detail::Parser parser;
+        return parser.parse(argc, argv, arguments_);
+    }
+    
+    inline Namespace ArgumentParser::parse_args(const std::vector<std::string>& args) {
+        detail::Parser parser;
+        return parser.parse(args, arguments_);
+    }
     
 } // namespace argparse
 

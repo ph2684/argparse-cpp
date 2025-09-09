@@ -235,7 +235,7 @@ _Prompt: Role: [専門的な開発者の役割] | Task: [コンテキスト参�
   - _Tests: Python argparseと同じ引数定義・入力で同じ結果になることを確認する統合テスト_
   - _Prompt: Role: 互換性テストエンジニア | Task: Python argparseと同じ引数定義・入力で同じ結果になることを確認するテストスイートを作成、ヘルプメッセージやエラーメッセージも比較 | Restrictions: 主要なユースケースをカバー、差異は文書化 | Success: Python argparseと高い互換性が確認され、tests/integration/python_compat_test.cppが通過する_
 
-- [ ] 23. サンプルプログラムの作成
+- [x] 23. サンプルプログラムの作成
   - File: examples/basic/hello_world.cpp
   - 最小限の使用例
   - 位置引数とオプション引数

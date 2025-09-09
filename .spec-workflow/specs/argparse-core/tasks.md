@@ -77,7 +77,7 @@ _Prompt: Role: [専門的な開発者の役割] | Task: [コンテキスト参�
   - _Tests: tests/unit/namespace_test.cpp - 値の設定・取得、型安全性の確認、存在しないキーでの例外、has()の動作のテスト_
   - _Prompt: Role: C++テンプレート設計者 | Task: Namespaceクラスを実装し、解析結果をunordered_mapで保持、get<T>()で型安全な値取得、has()で存在確認を提供 | Restrictions: 存在しないキーへのアクセスは例外を投げる、const正確性を保つ | Success: Namespaceが解析結果を正しく保持し、型安全にアクセスでき、tests/unit/namespace_test.cppが通過する_
 
-- [ ] 8. Tokenizerの実装
+- [x] 8. Tokenizerの実装
   - File: include/argparse/argparse.hpp（detail namespace内）
   - コマンドライン引数のトークン化
   - --や=の処理

@@ -370,6 +370,221 @@ namespace argparse {
         std::function<AnyValue(const std::string&)> TypeConverter::get_converter<std::string>() {
             return string_converter();
         }
+        
+        // Token structure for parsed arguments
+        struct Token {
+            enum Type {
+                POSITIONAL,    // Non-option argument
+                SHORT_OPTION,  // -o
+                LONG_OPTION,   // --option
+                OPTION_VALUE,  // Value for an option
+                END_OPTIONS    // -- (end of options marker)
+            };
+            
+            Type type;
+            std::string value;
+            std::string raw_value;  // Original value before processing
+            
+            Token(Type t, const std::string& val, const std::string& raw_val = "")
+                : type(t), value(val), raw_value(raw_val.empty() ? val : raw_val) {}
+        };
+        
+        // Tokenizer: コマンドライン引数のトークン化
+        class Tokenizer {
+        private:
+            std::vector<Token> tokens_;
+            size_t current_index_;
+            bool end_of_options_;
+            
+        public:
+            // Constructor
+            Tokenizer() : current_index_(0), end_of_options_(false) {}
+            
+            // argv配列からトークンを生成
+            void tokenize(int argc, char* argv[]) {
+                std::vector<std::string> args;
+                for (int i = 1; i < argc; ++i) {  // Skip program name (argv[0])
+                    args.push_back(std::string(argv[i]));
+                }
+                tokenize(args);
+            }
+            
+            // string配列からトークンを生成
+            void tokenize(const std::vector<std::string>& args) {
+                tokens_.clear();
+                current_index_ = 0;
+                end_of_options_ = false;
+                
+                for (size_t i = 0; i < args.size(); ++i) {
+                    const std::string& arg = args[i];
+                    
+                    // "--" は引数終了マーカー
+                    if (arg == "--" && !end_of_options_) {
+                        tokens_.push_back(Token(Token::END_OPTIONS, arg));
+                        end_of_options_ = true;
+                        continue;
+                    }
+                    
+                    // 引数終了後はすべて位置引数として扱う
+                    if (end_of_options_) {
+                        tokens_.push_back(Token(Token::POSITIONAL, arg));
+                        continue;
+                    }
+                    
+                    // オプション引数の判定と処理
+                    if (arg.length() >= 2 && arg[0] == '-') {
+                        if (arg[1] == '-') {
+                            // 長形式オプション (--option or --option=value)
+                            _process_long_option(arg);
+                        } else {
+                            // 短縮形オプション (-o or -o value or -abc)
+                            _process_short_option(arg);
+                        }
+                    } else {
+                        // 位置引数
+                        tokens_.push_back(Token(Token::POSITIONAL, arg));
+                    }
+                }
+            }
+            
+            // 次のトークンを取得
+            Token next() {
+                if (current_index_ >= tokens_.size()) {
+                    throw std::runtime_error("No more tokens available");
+                }
+                return tokens_[current_index_++];
+            }
+            
+            // 現在のトークンを確認（消費しない）
+            Token peek() const {
+                if (current_index_ >= tokens_.size()) {
+                    throw std::runtime_error("No more tokens available");
+                }
+                return tokens_[current_index_];
+            }
+            
+            // トークンが残っているかチェック
+            bool has_next() const {
+                return current_index_ < tokens_.size();
+            }
+            
+            // インデックスをリセット
+            void reset() {
+                current_index_ = 0;
+            }
+            
+            // 全トークンの取得（デバッグ用）
+            const std::vector<Token>& get_tokens() const {
+                return tokens_;
+            }
+            
+            // トークン数の取得
+            size_t size() const {
+                return tokens_.size();
+            }
+            
+            // 現在位置の取得
+            size_t position() const {
+                return current_index_;
+            }
+            
+            // 指定位置にシーク
+            void seek(size_t pos) {
+                if (pos > tokens_.size()) {
+                    pos = tokens_.size();
+                }
+                current_index_ = pos;
+            }
+            
+        private:
+            // 長形式オプションの処理 (--option or --option=value)
+            void _process_long_option(const std::string& arg) {
+                size_t equals_pos = arg.find('=');
+                
+                if (equals_pos != std::string::npos) {
+                    // --option=value 形式
+                    std::string option = arg.substr(0, equals_pos);
+                    std::string value = arg.substr(equals_pos + 1);
+                    
+                    // 引用符の処理
+                    value = _unquote_string(value);
+                    
+                    tokens_.push_back(Token(Token::LONG_OPTION, option, arg));
+                    tokens_.push_back(Token(Token::OPTION_VALUE, value, arg));
+                } else {
+                    // --option 形式
+                    tokens_.push_back(Token(Token::LONG_OPTION, arg));
+                }
+            }
+            
+            // 短縮形オプションの処理 (-o or -abc)
+            void _process_short_option(const std::string& arg) {
+                if (arg.length() == 2) {
+                    // 単一の短縮形オプション (-o)
+                    tokens_.push_back(Token(Token::SHORT_OPTION, arg));
+                } else {
+                    // 複数の短縮形オプション (-abc → -a -b -c)
+                    for (size_t i = 1; i < arg.length(); ++i) {
+                        std::string single_opt = "-" + std::string(1, arg[i]);
+                        tokens_.push_back(Token(Token::SHORT_OPTION, single_opt, arg));
+                    }
+                }
+            }
+            
+            // 引用符付き文字列の処理
+            std::string _unquote_string(const std::string& str) {
+                if (str.length() < 2) {
+                    return str;
+                }
+                
+                char first = str[0];
+                char last = str[str.length() - 1];
+                
+                // ダブルクォートまたはシングルクォートで囲まれている場合
+                if ((first == '"' && last == '"') || (first == '\'' && last == '\'')) {
+                    std::string result = str.substr(1, str.length() - 2);
+                    
+                    // エスケープシーケンスの処理
+                    if (first == '"') {
+                        result = _process_escape_sequences(result);
+                    }
+                    
+                    return result;
+                }
+                
+                return str;
+            }
+            
+            // エスケープシーケンスの処理
+            std::string _process_escape_sequences(const std::string& str) {
+                std::string result;
+                result.reserve(str.length());
+                
+                for (size_t i = 0; i < str.length(); ++i) {
+                    if (str[i] == '\\' && i + 1 < str.length()) {
+                        char next = str[i + 1];
+                        switch (next) {
+                            case 'n': result += '\n'; break;
+                            case 't': result += '\t'; break;
+                            case 'r': result += '\r'; break;
+                            case '\\': result += '\\'; break;
+                            case '"': result += '"'; break;
+                            case '\'': result += '\''; break;
+                            default:
+                                // 不明なエスケープシーケンスはそのまま保持
+                                result += '\\';
+                                result += next;
+                                break;
+                        }
+                        ++i;  // 次の文字をスキップ
+                    } else {
+                        result += str[i];
+                    }
+                }
+                
+                return result;
+            }
+        };
     }
     
     // Argument definition structure

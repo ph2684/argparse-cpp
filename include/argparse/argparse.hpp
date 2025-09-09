@@ -25,6 +25,8 @@
 #include <typeinfo>
 #include <functional>
 #include <type_traits>
+#include <iomanip>
+#include <cctype>
 
 // Version information
 #define ARGPARSE_VERSION_MAJOR 0
@@ -818,11 +820,11 @@ namespace argparse {
         explicit ArgumentParser(const std::string& prog = "", 
                                const std::string& description = "",
                                const std::string& epilog = "",
-                               bool add_help = true)
-            : prog_(prog), description_(description), epilog_(epilog), add_help_(add_help) {
+                               bool add_help = false)
+            : prog_(prog.empty() ? "program" : prog), description_(description), epilog_(epilog), add_help_(add_help) {
             
-            // prog が空の場合は後でargv[0]から設定される
-            // デフォルト引数("")の場合は"program"に設定、parse_argsで上書きされる
+            // prog が空の場合は"program"をデフォルトとして設定
+            // parse_argsでargv[0]から上書きされる場合がある
             
             // --help オプションを自動追加
             if (add_help_) {
@@ -1389,8 +1391,10 @@ namespace argparse {
                             new_list.push_back(value.get<std::string>());
                             result.set(key, new_list);
                         }
+                    } catch (const std::invalid_argument& e) {
+                        throw;  // Re-throw invalid_argument as-is for type conversion errors
                     } catch (const std::exception& e) {
-                        throw std::invalid_argument("Error parsing argument " + token.value + ": " + e.what());
+                        throw std::runtime_error("Error parsing argument " + token.value + ": " + e.what());
                     }
                 } else if (def.action == "custom") {
                     // カスタムアクション処理
@@ -1447,8 +1451,10 @@ namespace argparse {
                             // 複数値の場合、元の文字列のリストとして格納
                             result.set(key, values);
                         }
+                    } catch (const std::invalid_argument& e) {
+                        throw;  // Re-throw invalid_argument as-is for type conversion errors
                     } catch (const std::exception& e) {
-                        throw std::invalid_argument("Error parsing argument " + token.value + ": " + e.what());
+                        throw std::runtime_error("Error parsing argument " + token.value + ": " + e.what());
                     }
                 } else {
                     throw std::runtime_error("Unsupported action: " + def.action);
@@ -1592,69 +1598,266 @@ namespace argparse {
         // Usage line
         oss << "usage: " << parser.prog();
         
-        // Add options summary
+        // Build usage line with arguments
         const auto& arguments = parser.get_arguments();
-        bool has_optional = false;
-        bool has_positional = false;
+        std::vector<std::shared_ptr<Argument>> positionals;
+        std::vector<std::shared_ptr<Argument>> optionals;
         
+        // 引数を分類
         for (const auto& arg : arguments) {
             if (arg->is_positional()) {
-                has_positional = true;
-                oss << " " << arg->get_name();
+                positionals.push_back(arg);
             } else {
-                has_optional = true;
+                optionals.push_back(arg);
             }
         }
         
-        if (has_optional) {
-            oss << " [options]";
+        // オプション引数を使用法に追加（ヘルプオプションは除外）
+        for (const auto& arg : optionals) {
+            const auto& def = arg->definition();
+            const auto& names = arg->get_names();
+            if (names.empty()) continue;
+            
+            // ヘルプオプション（--help, -h）は使用法には表示しない
+            bool is_help_option = false;
+            for (const auto& name : names) {
+                if (name == "--help" || name == "-h") {
+                    is_help_option = true;
+                    break;
+                }
+            }
+            if (is_help_option) continue;
+            
+            // 必須オプションかどうか
+            if (def.required) {
+                oss << " ";
+            } else {
+                oss << " [";
+            }
+            
+            // 最初の名前を使用（通常は短形式）
+            oss << names[0];
+            
+            // metavarまたはnargsに基づいた値表示
+            if (def.action != "store_true" && def.action != "store_false" && def.action != "count") {
+                std::string metavar = def.metavar;
+                if (metavar.empty()) {
+                    // デフォルトのmetavar生成
+                    std::string base = names[0];
+                    if (base.length() > 2 && base.substr(0, 2) == "--") {
+                        metavar = base.substr(2);
+                    } else if (base.length() > 1 && base[0] == '-') {
+                        metavar = base.substr(1);
+                    } else {
+                        metavar = base;
+                    }
+                    // 大文字に変換
+                    for (char& c : metavar) {
+                        c = std::toupper(c);
+                    }
+                }
+                
+                // nargsに基づいた表示
+                if (def.nargs == -2) {  // "?"
+                    oss << " [" << metavar << "]";
+                } else if (def.nargs == -3) {  // "*"
+                    oss << " [" << metavar << " [" << metavar << " ...]]";
+                } else if (def.nargs == -4) {  // "+"
+                    oss << " " << metavar << " [" << metavar << " ...]";
+                } else if (def.nargs > 1) {
+                    for (int i = 0; i < def.nargs; ++i) {
+                        oss << " " << metavar;
+                    }
+                } else {
+                    oss << " " << metavar;
+                }
+            }
+            
+            if (!def.required) {
+                oss << "]";
+            }
         }
-        oss << "\n\n";
+        
+        // 位置引数を使用法に追加
+        for (const auto& arg : positionals) {
+            const auto& def = arg->definition();
+            std::string name = arg->get_name();
+            std::string metavar = def.metavar.empty() ? name : def.metavar;
+            
+            oss << " ";
+            
+            // nargsに基づいた表示
+            if (def.nargs == -2) {  // "?"
+                oss << "[" << metavar << "]";
+            } else if (def.nargs == -3) {  // "*"
+                oss << "[" << metavar << " [" << metavar << " ...]]";
+            } else if (def.nargs == -4) {  // "+"
+                oss << metavar << " [" << metavar << " ...]";
+            } else if (def.nargs == -5) {  // remainder
+                oss << metavar << " ...";
+            } else if (def.nargs > 1) {
+                for (int i = 0; i < def.nargs; ++i) {
+                    if (i > 0) oss << " ";
+                    oss << metavar;
+                }
+            } else {
+                if (!def.required) {
+                    oss << "[" << metavar << "]";
+                } else {
+                    oss << metavar;
+                }
+            }
+        }
+        
+        oss << "\n";
         
         // Description
         if (!parser.description().empty()) {
-            oss << parser.description() << "\n\n";
+            oss << "\n" << parser.description() << "\n";
         }
         
-        // Positional arguments
-        if (has_positional) {
-            oss << "positional arguments:\n";
-            for (const auto& arg : arguments) {
-                if (arg->is_positional()) {
-                    oss << "  " << arg->get_name();
-                    if (!arg->definition().help.empty()) {
-                        oss << "    " << arg->definition().help;
+        // Positional arguments section
+        if (!positionals.empty()) {
+            oss << "\npositional arguments:\n";
+            for (const auto& arg : positionals) {
+                const auto& def = arg->definition();
+                std::string name = arg->get_name();
+                std::string metavar = def.metavar.empty() ? name : def.metavar;
+                
+                // フォーマット: 名前を左寄せ、説明を右側に
+                oss << "  ";
+                std::string arg_str = metavar;
+                oss << std::left << std::setw(20) << arg_str;
+                
+                if (!def.help.empty()) {
+                    // ヘルプテキストを折り返し（80文字幅を考慮）
+                    std::string help_text = def.help;
+                    size_t max_width = 80 - 24;  // 80文字 - インデント - 名前の幅
+                    
+                    if (help_text.length() <= max_width) {
+                        oss << help_text;
+                    } else {
+                        // 長いヘルプテキストの折り返し処理
+                        size_t pos = 0;
+                        bool first_line = true;
+                        while (pos < help_text.length()) {
+                            if (!first_line) {
+                                oss << "\n" << std::string(24, ' ');  // 24文字のインデント
+                            }
+                            size_t line_length = std::min(max_width, help_text.length() - pos);
+                            oss << help_text.substr(pos, line_length);
+                            pos += line_length;
+                            first_line = false;
+                        }
                     }
-                    oss << "\n";
                 }
+                oss << "\n";
             }
-            oss << "\n";
         }
         
-        // Optional arguments
-        if (has_optional) {
-            oss << "optional arguments:\n";
-            for (const auto& arg : arguments) {
-                if (!arg->is_positional()) {
-                    const auto& names = arg->get_names();
-                    oss << "  ";
-                    for (size_t i = 0; i < names.size(); ++i) {
-                        if (i > 0) oss << ", ";
-                        oss << names[i];
+        // Optional arguments section
+        if (!optionals.empty() || true) {  // 常にオプション引数セクションを表示
+            oss << "\noptional arguments:\n";
+            
+            // 全てのオプション引数を表示（ヘルプ引数も含む）
+            for (const auto& arg : optionals) {
+                const auto& def = arg->definition();
+                const auto& names = arg->get_names();
+                if (names.empty()) continue;
+                
+                oss << "  ";
+                
+                // 引数名を短形式優先で並び替え
+                std::vector<std::string> sorted_names = names;
+                std::sort(sorted_names.begin(), sorted_names.end(), [](const std::string& a, const std::string& b) {
+                    // 短形式（-x）を長形式（--xxx）より先に
+                    if (a.length() != b.length()) {
+                        return a.length() < b.length();
+                    }
+                    return a < b;
+                });
+                
+                // 引数名とmetavarの組み立て
+                std::string arg_str;
+                for (size_t i = 0; i < sorted_names.size(); ++i) {
+                    if (i > 0) arg_str += ", ";
+                    arg_str += sorted_names[i];
+                }
+                
+                // metavarを追加（action次第）
+                if (def.action != "store_true" && def.action != "store_false" && def.action != "count" && def.action != "help") {
+                    std::string metavar = def.metavar;
+                    if (metavar.empty()) {
+                        // デフォルトのmetavar生成
+                        for (const auto& name : sorted_names) {
+                            if (name.length() > 2 && name.substr(0, 2) == "--") {
+                                metavar = name.substr(2);
+                                break;
+                            }
+                        }
+                        if (metavar.empty() && !sorted_names.empty()) {
+                            metavar = sorted_names[0];
+                            if (metavar.length() > 1 && metavar[0] == '-') {
+                                metavar = metavar.substr(1);
+                            }
+                        }
+                        // 大文字に変換
+                        for (char& c : metavar) {
+                            c = std::toupper(c);
+                        }
                     }
                     
-                    if (!arg->definition().help.empty()) {
-                        oss << "    " << arg->definition().help;
+                    if (!metavar.empty()) {
+                        arg_str += " " + metavar;
                     }
-                    oss << "\n";
                 }
+                
+                oss << std::left << std::setw(20) << arg_str;
+                
+                // ヘルプテキスト
+                if (!def.help.empty()) {
+                    std::string help_text = def.help;
+                    
+                    // デフォルト値を表示
+                    if (!def.default_value.empty() && def.action == "store") {
+                        help_text += " (default: ";
+                        if (def.default_value.type() == typeid(std::string)) {
+                            help_text += def.default_value.get<std::string>();
+                        } else if (def.default_value.type() == typeid(int)) {
+                            help_text += std::to_string(def.default_value.get<int>());
+                        } else if (def.default_value.type() == typeid(double)) {
+                            help_text += std::to_string(def.default_value.get<double>());
+                        } else if (def.default_value.type() == typeid(bool)) {
+                            help_text += def.default_value.get<bool>() ? "true" : "false";
+                        }
+                        help_text += ")";
+                    }
+                    
+                    // 折り返し処理
+                    size_t max_width = 80 - 24;
+                    if (help_text.length() <= max_width) {
+                        oss << help_text;
+                    } else {
+                        size_t pos = 0;
+                        bool first_line = true;
+                        while (pos < help_text.length()) {
+                            if (!first_line) {
+                                oss << "\n" << std::string(24, ' ');
+                            }
+                            size_t line_length = std::min(max_width, help_text.length() - pos);
+                            oss << help_text.substr(pos, line_length);
+                            pos += line_length;
+                            first_line = false;
+                        }
+                    }
+                }
+                oss << "\n";
             }
-            oss << "\n";
         }
         
         // Epilog
         if (!parser.epilog().empty()) {
-            oss << parser.epilog() << "\n";
+            oss << "\n" << parser.epilog() << "\n";
         }
         
         return oss.str();

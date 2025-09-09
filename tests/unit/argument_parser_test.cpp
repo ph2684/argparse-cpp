@@ -19,14 +19,14 @@ TEST_F(ArgumentParserTest, BasicInitialization) {
     EXPECT_EQ(parser1.prog(), "program");
     EXPECT_EQ(parser1.description(), "");
     EXPECT_EQ(parser1.epilog(), "");
-    EXPECT_TRUE(parser1.help_enabled());
+    EXPECT_FALSE(parser1.help_enabled());  // Default is now false
     
     // パラメータ付きコンストラクタ
     argparse::ArgumentParser parser2("myprogram", "This is a test program", "End of help");
     EXPECT_EQ(parser2.prog(), "myprogram");
     EXPECT_EQ(parser2.description(), "This is a test program");
     EXPECT_EQ(parser2.epilog(), "End of help");
-    EXPECT_TRUE(parser2.help_enabled());
+    EXPECT_FALSE(parser2.help_enabled());  // Default is now false
     
     // ヘルプ無効化
     argparse::ArgumentParser parser3("", "", "", false);

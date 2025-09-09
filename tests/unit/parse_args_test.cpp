@@ -135,24 +135,26 @@ TEST_F(ParseArgsTest, EmptyArgumentsTest) {
 
 // Test help handling (--help should throw help_requested exception)
 TEST_F(ParseArgsTest, HelpHandlingTest) {
-    parser.add_argument("name");
+    argparse::ArgumentParser help_parser("test_prog", "Test program", "", true);
+    help_parser.add_argument("name");
     
     std::vector<std::string> args = {"--help"};
     
     // Should throw help_requested exception with help message
-    EXPECT_THROW(parser.parse_args(args), argparse::help_requested);
+    EXPECT_THROW(help_parser.parse_args(args), argparse::help_requested);
 }
 
 // Test help message content
 TEST_F(ParseArgsTest, HelpMessageContentTest) {
-    parser.add_argument("input_file").help("Input file path");
-    parser.add_argument("--verbose", "-v").action("store_true").help("Enable verbose output");
-    parser.add_argument("--output", "-o").help("Output file path");
+    argparse::ArgumentParser help_parser("test_prog", "Test program", "", true);
+    help_parser.add_argument("input_file").help("Input file path");
+    help_parser.add_argument("--verbose", "-v").action("store_true").help("Enable verbose output");
+    help_parser.add_argument("--output", "-o").help("Output file path");
     
     std::vector<std::string> args = {"--help"};
     
     try {
-        parser.parse_args(args);
+        help_parser.parse_args(args);
         FAIL() << "Expected help_requested exception";
     } catch (const argparse::help_requested& e) {
         std::string help_msg = e.message();

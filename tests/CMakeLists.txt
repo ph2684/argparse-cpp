@@ -53,6 +53,7 @@ set(TEST_SOURCES
     unit/parse_args_test.cpp
     unit/action_test.cpp
     unit/nargs_test.cpp
+    unit/help_generator_test.cpp
 )
 
 # テスト実行ファイルを作成

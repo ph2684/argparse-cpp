@@ -129,7 +129,7 @@ _Prompt: Role: [専門的な開発者の役割] | Task: [コンテキスト参�
   - _Tests: tests/unit/nargs_test.cpp - 固定数値、'?'（0または1）、'*'（0以上）、'+'（1以上）、remainder（残り全て）の動作、エラーケースのテスト_
   - _Prompt: Role: 引数カウント処理専門家 | Task: Parserクラスにnargs処理を実装、固定数値、'?'（0または1）、'*'（0以上）、'+'（1以上）、remainder（残り全て）をサポート | Restrictions: 値の数が不正な場合はエラー、位置引数での動作も考慮 | Success: nargsが正しく機能し、指定された数の値を処理でき、tests/unit/nargs_test.cppが通過する_
 
-- [ ] 13. HelpGeneratorクラスの実装
+- [-] 13. HelpGeneratorクラスの実装
   - File: include/argparse/argparse.hpp
   - usage文字列の生成
   - 引数リストのフォーマット

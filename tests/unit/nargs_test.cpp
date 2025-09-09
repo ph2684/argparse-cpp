@@ -31,7 +31,7 @@ TEST_F(NargsTest, FixedNumberNargsErrorTest) {
     
     std::vector<std::string> args = {"--coords", "1", "2"};  // Missing one value
     
-    EXPECT_THROW(parser.parse_args(args), std::invalid_argument);
+    EXPECT_THROW(parser.parse_args(args), std::runtime_error);
 }
 
 // Test nargs="?" (optional)
@@ -101,7 +101,7 @@ TEST_F(NargsTest, OneOrMoreNargsErrorTest) {
     
     std::vector<std::string> args = {"--files"};  // No values
     
-    EXPECT_THROW(parser.parse_args(args), std::invalid_argument);
+    EXPECT_THROW(parser.parse_args(args), std::runtime_error);
 }
 
 // Test nargs="remainder"

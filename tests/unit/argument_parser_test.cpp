@@ -19,14 +19,14 @@ TEST_F(ArgumentParserTest, BasicInitialization) {
     EXPECT_EQ(parser1.prog(), "program");
     EXPECT_EQ(parser1.description(), "");
     EXPECT_EQ(parser1.epilog(), "");
-    EXPECT_FALSE(parser1.help_enabled());  // Default is now false
+    EXPECT_TRUE(parser1.help_enabled());  // Default is now true
     
     // パラメータ付きコンストラクタ
     argparse::ArgumentParser parser2("myprogram", "This is a test program", "End of help");
     EXPECT_EQ(parser2.prog(), "myprogram");
     EXPECT_EQ(parser2.description(), "This is a test program");
     EXPECT_EQ(parser2.epilog(), "End of help");
-    EXPECT_FALSE(parser2.help_enabled());  // Default is now false
+    EXPECT_TRUE(parser2.help_enabled());  // Default is now true
     
     // ヘルプ無効化
     argparse::ArgumentParser parser3("", "", "", false);
@@ -35,7 +35,8 @@ TEST_F(ArgumentParserTest, BasicInitialization) {
 
 // add_argumentの基本動作テスト
 TEST_F(ArgumentParserTest, AddArgument) {
-    argparse::ArgumentParser parser("test");
+    // add_help=falseで自動ヘルプを無効化
+    argparse::ArgumentParser parser("test", "", "", false);
     
     // 位置引数の追加
     parser.add_argument("filename");
@@ -125,7 +126,8 @@ TEST_F(ArgumentParserTest, ArgumentTypeDetection) {
 
 // 引数リストの取得テスト
 TEST_F(ArgumentParserTest, ArgumentListAccess) {
-    argparse::ArgumentParser parser("test");
+    // add_help=falseで自動ヘルプを無効化
+    argparse::ArgumentParser parser("test", "", "", false);
     
     EXPECT_EQ(parser.get_arguments().size(), 0);
     

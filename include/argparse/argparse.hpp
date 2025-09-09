@@ -27,6 +27,7 @@
 #include <type_traits>
 #include <iomanip>
 #include <cctype>
+#include <cstdlib>
 
 // Version information
 #define ARGPARSE_VERSION_MAJOR 0
@@ -820,7 +821,7 @@ namespace argparse {
         explicit ArgumentParser(const std::string& prog = "", 
                                const std::string& description = "",
                                const std::string& epilog = "",
-                               bool add_help = false)
+                               bool add_help = true)
             : prog_(prog.empty() ? "program" : prog), description_(description), epilog_(epilog), add_help_(add_help) {
             
             // prog が空の場合は"program"をデフォルトとして設定
@@ -1874,9 +1875,10 @@ namespace argparse {
             detail::Parser parser;
             return parser.parse(argc, argv, arguments_);
         } catch (const help_requested&) {
-            // Generate and throw help message
+            // Generate and display help message, then exit
             std::string help_message = detail::HelpGenerator::generate_help(*this);
-            throw help_requested(help_message);
+            std::cout << help_message << std::endl;
+            std::exit(0);
         }
     }
     
@@ -1885,9 +1887,10 @@ namespace argparse {
             detail::Parser parser;
             return parser.parse(args, arguments_);
         } catch (const help_requested&) {
-            // Generate and throw help message
+            // Generate and display help message, then exit
             std::string help_message = detail::HelpGenerator::generate_help(*this);
-            throw help_requested(help_message);
+            std::cout << help_message << std::endl;
+            std::exit(0);
         }
     }
     

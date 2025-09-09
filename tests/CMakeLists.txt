@@ -54,6 +54,7 @@ set(TEST_SOURCES
     unit/action_test.cpp
     unit/nargs_test.cpp
     unit/help_generator_test.cpp
+    unit/help_option_test.cpp
 )
 
 # テスト実行ファイルを作成

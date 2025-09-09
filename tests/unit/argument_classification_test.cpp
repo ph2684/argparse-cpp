@@ -76,10 +76,11 @@ TEST_F(ArgumentClassificationTest, ShortAndLongFormHandling) {
 
 // 複数名前での処理テスト
 TEST_F(ArgumentClassificationTest, MultipleNamesHandling) {
-    argparse::ArgumentParser parser("test");
+    // add_help=falseで自動ヘルプを無効化
+    argparse::ArgumentParser parser("test", "", "", false);
     
-    // 複数のエイリアス
-    std::vector<std::string> names = {"-h", "--help", "--h"};
+    // 複数のエイリアス（-hの代わりに-xを使用）
+    std::vector<std::string> names = {"-x", "--example", "--ex"};
     auto& arg = parser.add_argument(names);
     
     EXPECT_FALSE(arg.is_positional());
@@ -92,9 +93,9 @@ TEST_F(ArgumentClassificationTest, MultipleNamesHandling) {
     }
     
     // すべて同じオブジェクトを参照していることを確認
-    auto ptr1 = parser.get_argument("-h");
-    auto ptr2 = parser.get_argument("--help");
-    auto ptr3 = parser.get_argument("--h");
+    auto ptr1 = parser.get_argument("-x");
+    auto ptr2 = parser.get_argument("--example");
+    auto ptr3 = parser.get_argument("--ex");
     EXPECT_EQ(ptr1, ptr2);
     EXPECT_EQ(ptr2, ptr3);
 }
@@ -153,7 +154,8 @@ TEST_F(ArgumentClassificationTest, POSIXCompliantArgumentFormat) {
 
 // 引数の順序と型の混合テスト
 TEST_F(ArgumentClassificationTest, MixedArgumentTypes) {
-    argparse::ArgumentParser parser("test");
+    // add_help=falseで自動ヘルプを無効化
+    argparse::ArgumentParser parser("test", "", "", false);
     
     // 位置引数、短縮形、長形式、組み合わせを混在
     auto& pos1 = parser.add_argument("input");

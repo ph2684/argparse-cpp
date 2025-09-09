@@ -13,7 +13,7 @@ _Prompt: Role: [専門的な開発者の役割] | Task: [コンテキスト参�
   - _Requirements: 設計書のヘッダファイル構成_
   - _Prompt: Role: C++ライブラリ開発者（ヘッダオンリー設計専門） | Task: argparse.hppの基本構造を作成し、pragma once、必要な標準ライブラリヘッダ（string, vector, map, memory等）のインクルード、argparseネームスペースの定義を行う | Restrictions: 外部依存を追加しない、C++11標準に準拠、過度なマクロを使用しない | Success: ヘッダファイルが正しくコンパイルされ、基本構造が整備される_
 
-- [ ] 2. 型消去実装（AnyValue）の作成
+- [x] 2. 型消去実装（AnyValue）の作成
   - File: include/argparse/argparse.hpp（detail namespace内）
   - AnyValueクラスの実装
   - BaseHolderとHolder構造の実装

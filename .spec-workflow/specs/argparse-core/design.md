@@ -115,8 +115,16 @@ graph TD
   - `parse(argc, argv, arguments)`
   - `tokenize(argv)`
   - `match_argument(token, arguments)`
+  - `_set_explicit_default_values()` - 明示的デフォルト値の設定
+  - `_set_boolean_action_defaults()` - boolean アクションのデフォルト値設定
+  - `_validate_required_arguments()` - 必須引数の検証
 - **依存関係:** Tokenizer, ValueMatcher
 - **再利用:** std::string, std::vector
+- **デフォルト値処理順序:**
+  1. 明示的なデフォルト値を設定（store_true/store_falseは除く）
+  2. 引数を解析
+  3. 必須引数をバリデーション
+  4. store_true/store_falseアクションの暗黙デフォルト値を設定（false/true）
 
 ### HelpGenerator
 - **目的:** ヘルプメッセージの自動生成とフォーマット

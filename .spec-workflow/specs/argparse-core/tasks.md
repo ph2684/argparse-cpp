@@ -118,6 +118,7 @@ _Prompt: Role: [専門的な開発者の役割] | Task: [コンテキスト参�
   - _Requirements: 要件3、5_
   - _Tests: tests/unit/action_test.cpp - store、store_true/false、append、countの各アクション動作、カスタムアクションの処理のテスト_
   - _Prompt: Role: 引数処理ロジック専門家 | Task: Argumentクラスにアクション処理を実装、store（値保存）、store_true/false（フラグ）、append（リスト追加）、count（カウント）を処理する機能 | Restrictions: Python argparseと同じ動作、アクション名は文字列で指定 | Success: 各アクションが期待通りに動作し、値が適切に処理され、tests/unit/action_test.cppが通過する_
+  - **Fix Applied**: store_trueアクションのデフォルト値問題を修正 - 引数が指定されない場合にfalseを自動設定し、get<bool>()でのArgumentError例外を防止
 
 - [x] 12. nargs処理の実装
   - File: include/argparse/argparse.hpp（Parser内）
@@ -192,6 +193,7 @@ _Prompt: Role: [専門的な開発者の役割] | Task: [コンテキスト参�
   - _Requirements: 要件3_
   - _Tests: tests/unit/required_test.cpp - requiredフラグがtrueの引数の必須チェック、未指定時のエラー、デフォルト値がある場合の処理のテスト_
   - _Prompt: Role: 引数検証エキスパート | Task: Parserクラスに必須引数チェックを実装、requiredフラグがtrueの引数が指定されていない場合にエラーを報告、分かりやすいエラーメッセージを生成 | Restrictions: 位置引数は常に必須、デフォルト値がある場合は必須でない | Success: 必須引数が正しくチェックされ、未指定時にエラーになり、tests/unit/required_test.cppが通過する_
+  - **Fix Applied**: 必須引数チェックとbooleanアクションのデフォルト値設定の順序を修正 - 必須チェック後にstore_true/store_falseのデフォルト値を設定することで、Python argparseとの互換性を確保
 
 - [x] 19. エラーメッセージシステムの実装
   - File: include/argparse/argparse.hpp（detail namespace内）

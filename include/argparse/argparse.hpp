@@ -1502,8 +1502,8 @@ namespace argparse {
                 // 結果を保持するNamespace
                 Namespace result;
                 
-                // デフォルト値を設定
-                _set_default_values(result, arguments);
+                // 明示的なデフォルト値を設定（store_true/store_falseは除く）
+                _set_explicit_default_values(result, arguments);
                 
                 // 位置引数のインデックス
                 size_t positional_index = 0;
@@ -1541,6 +1541,9 @@ namespace argparse {
                 // 必須引数のチェック
                 _validate_required_arguments(result, arguments);
                 
+                // boolean アクションのデフォルト値を設定（必須引数チェック後）
+                _set_boolean_action_defaults(result, arguments);
+                
                 return result;
             }
             
@@ -1562,14 +1565,37 @@ namespace argparse {
                 }
             }
             
-            // デフォルト値を設定
-            void _set_default_values(Namespace& result, 
-                                   const std::vector<std::shared_ptr<Argument>>& arguments) {
+            // 明示的なデフォルト値を設定（boolean アクションは除く）
+            void _set_explicit_default_values(Namespace& result, 
+                                             const std::vector<std::shared_ptr<Argument>>& arguments) {
                 for (const auto& arg : arguments) {
                     const auto& def = arg->definition();
+                    std::string key = _get_storage_key(arg);
+                    
                     if (!def.default_value.empty()) {
-                        std::string key = _get_storage_key(arg);
                         result.set_raw(key, def.default_value);
+                    }
+                }
+            }
+            
+            // boolean アクションのデフォルト値を設定
+            void _set_boolean_action_defaults(Namespace& result, 
+                                             const std::vector<std::shared_ptr<Argument>>& arguments) {
+                for (const auto& arg : arguments) {
+                    const auto& def = arg->definition();
+                    std::string key = _get_storage_key(arg);
+                    
+                    // 既に値が設定されている場合はスキップ
+                    if (result.has(key)) {
+                        continue;
+                    }
+                    
+                    if (def.action == "store_true") {
+                        // store_trueアクションの場合、明示的なデフォルト値がなければfalseを設定
+                        result.set(key, false);
+                    } else if (def.action == "store_false") {
+                        // store_falseアクションの場合、明示的なデフォルト値がなければtrueを設定
+                        result.set(key, true);
                     }
                 }
             }

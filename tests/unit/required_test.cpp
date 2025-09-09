@@ -128,7 +128,8 @@ TEST_F(RequiredTest, RequiredBooleanFlags) {
         std::vector<std::string> args = {"--verbose"};
         auto ns = parser.parse_args(args);
         EXPECT_TRUE(ns.get<bool>("verbose"));
-        EXPECT_FALSE(ns.has("quiet"));
+        EXPECT_TRUE(ns.has("quiet"));        // quietには false が設定されるのでhas()はtrue
+        EXPECT_FALSE(ns.get<bool>("quiet")); // quietの値はfalse
     }
     
     // 必須のstore_trueフラグが不足している場合はエラー

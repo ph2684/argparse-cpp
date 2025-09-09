@@ -579,6 +579,9 @@ namespace argparse {
         
         // add_argumentメソッド - 位置引数版
         Argument& add_argument(const std::string& name) {
+            std::vector<std::string> names = {name};
+            _validate_argument_names(names);
+            
             auto arg = std::make_shared<Argument>(name);
             arguments_.push_back(arg);
             
@@ -591,6 +594,8 @@ namespace argparse {
         // add_argumentメソッド - オプション引数版（短縮形と長形式）
         Argument& add_argument(const std::string& short_name, const std::string& long_name) {
             std::vector<std::string> names = {short_name, long_name};
+            _validate_argument_names(names);
+            
             auto arg = std::make_shared<Argument>(names);
             arguments_.push_back(arg);
             
@@ -603,6 +608,8 @@ namespace argparse {
         
         // add_argumentメソッド - 複数名前版
         Argument& add_argument(const std::vector<std::string>& names) {
+            _validate_argument_names(names);
+            
             auto arg = std::make_shared<Argument>(names);
             arguments_.push_back(arg);
             
@@ -661,6 +668,84 @@ namespace argparse {
                 return argv0.substr(last_slash + 1);
             }
             return argv0;
+        }
+        
+        // Validate argument name according to POSIX conventions
+        bool _is_valid_argument_name(const std::string& name) const {
+            if (name.empty()) {
+                return false;  // 空の名前は不正
+            }
+            
+            if (name[0] == '-') {
+                // オプション引数の場合
+                if (name.length() == 1) {
+                    return false;  // "-" のみは不正
+                }
+                
+                if (name[1] == '-') {
+                    // 長形式 (--option)
+                    if (name.length() == 2) {
+                        return false;  // "--" のみは不正
+                    }
+                    
+                    // 長形式は3文字以上で、英数字・ハイフン・アンダースコアのみ
+                    for (size_t i = 2; i < name.length(); ++i) {
+                        char c = name[i];
+                        if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || 
+                              (c >= '0' && c <= '9') || c == '-' || c == '_')) {
+                            return false;
+                        }
+                    }
+                } else {
+                    // 短縮形 (-o)
+                    // 短縮形は通常1文字だが、複数文字も許可（-abc）
+                    for (size_t i = 1; i < name.length(); ++i) {
+                        char c = name[i];
+                        if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || 
+                              (c >= '0' && c <= '9'))) {
+                            return false;
+                        }
+                    }
+                }
+            } else {
+                // 位置引数の場合
+                // 英数字・アンダースコア・ハイフンのみ（先頭は英字またはアンダースコア）
+                if (!((name[0] >= 'a' && name[0] <= 'z') || (name[0] >= 'A' && name[0] <= 'Z') || 
+                      name[0] == '_')) {
+                    return false;
+                }
+                
+                for (size_t i = 1; i < name.length(); ++i) {
+                    char c = name[i];
+                    if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || 
+                          (c >= '0' && c <= '9') || c == '_' || c == '-')) {
+                        return false;
+                    }
+                }
+            }
+            
+            return true;
+        }
+        
+        // Check for duplicate argument names
+        void _check_duplicate_argument(const std::string& name) const {
+            if (argument_map_.find(name) != argument_map_.end()) {
+                throw std::runtime_error("Duplicate argument name: '" + name + "'");
+            }
+        }
+        
+        // Validate and check all names for an argument
+        void _validate_argument_names(const std::vector<std::string>& names) const {
+            if (names.empty()) {
+                throw std::invalid_argument("Argument must have at least one name");
+            }
+            
+            for (const auto& name : names) {
+                if (!_is_valid_argument_name(name)) {
+                    throw std::invalid_argument("Invalid argument name: '" + name + "'");
+                }
+                _check_duplicate_argument(name);
+            }
         }
     };
     

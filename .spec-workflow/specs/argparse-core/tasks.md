@@ -55,7 +55,7 @@ _Prompt: Role: [専門的な開発者の役割] | Task: [コンテキスト参�
   - _Tests: tests/unit/argument_parser_test.cpp - 初期化（prog、description、epilog）、add_argumentの基本動作、引数の管理のテスト_
   - _Prompt: Role: C++ APIデザイナー | Task: ArgumentParserクラスの基本構造を実装し、コンストラクタでprog、description、epilogを受け取り、add_argumentメソッドの基本形を実装、内部でArgumentのリストを管理 | Restrictions: Python argparseとAPIシグネチャを一致させる、メモリ管理はRAII原則に従う | Success: ArgumentParserが初期化でき、引数を追加でき、tests/unit/argument_parser_test.cppが通過する_
 
-- [ ] 6. 位置引数とオプション引数の判定ロジック
+- [x] 6. 位置引数とオプション引数の判定ロジック
   - File: include/argparse/argparse.hpp（ArgumentParser内）
   - 引数名から位置/オプションを判定
   - 短縮形と長形式の処理

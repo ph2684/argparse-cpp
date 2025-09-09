@@ -46,6 +46,7 @@ set(TEST_SOURCES
     unit/type_converter_test.cpp
     unit/argument_test.cpp
     unit/argument_parser_test.cpp
+    unit/argument_classification_test.cpp
 )
 
 # テスト実行ファイルを作成

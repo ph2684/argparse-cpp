@@ -45,6 +45,7 @@ set(TEST_SOURCES
     unit/anyvalue_test.cpp
     unit/type_converter_test.cpp
     unit/argument_test.cpp
+    unit/argument_parser_test.cpp
 )
 
 # テスト実行ファイルを作成

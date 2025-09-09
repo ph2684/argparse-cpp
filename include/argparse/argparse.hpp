@@ -551,6 +551,119 @@ namespace argparse {
         }
     };
     
+    // ArgumentParser: メインパーサークラス
+    class ArgumentParser {
+    private:
+        std::string prog_;
+        std::string description_;
+        std::string epilog_;
+        std::string usage_;
+        bool add_help_;
+        
+        std::vector<std::shared_ptr<Argument>> arguments_;
+        std::map<std::string, std::shared_ptr<Argument>> argument_map_;
+        
+    public:
+        // コンストラクタ
+        explicit ArgumentParser(const std::string& prog = "", 
+                               const std::string& description = "",
+                               const std::string& epilog = "",
+                               bool add_help = true)
+            : prog_(prog), description_(description), epilog_(epilog), add_help_(add_help) {
+            
+            // prog が空の場合は後でargv[0]から設定される
+            if (prog_.empty()) {
+                prog_ = "program";  // デフォルト名、parse_argsで上書きされる
+            }
+        }
+        
+        // add_argumentメソッド - 位置引数版
+        Argument& add_argument(const std::string& name) {
+            auto arg = std::make_shared<Argument>(name);
+            arguments_.push_back(arg);
+            
+            // 引数名をマップに登録（位置引数かオプション引数かに関わらず）
+            argument_map_[name] = arg;
+            
+            return *arg;
+        }
+        
+        // add_argumentメソッド - オプション引数版（短縮形と長形式）
+        Argument& add_argument(const std::string& short_name, const std::string& long_name) {
+            std::vector<std::string> names = {short_name, long_name};
+            auto arg = std::make_shared<Argument>(names);
+            arguments_.push_back(arg);
+            
+            // 両方の名前をマップに登録
+            argument_map_[short_name] = arg;
+            argument_map_[long_name] = arg;
+            
+            return *arg;
+        }
+        
+        // add_argumentメソッド - 複数名前版
+        Argument& add_argument(const std::vector<std::string>& names) {
+            auto arg = std::make_shared<Argument>(names);
+            arguments_.push_back(arg);
+            
+            // すべての名前をマップに登録
+            for (const auto& name : names) {
+                argument_map_[name] = arg;
+            }
+            
+            return *arg;
+        }
+        
+        // Getter methods
+        const std::string& prog() const { return prog_; }
+        const std::string& description() const { return description_; }
+        const std::string& epilog() const { return epilog_; }
+        
+        // Set program name (usually called from parse_args with argv[0])
+        void set_prog(const std::string& prog) {
+            prog_ = prog;
+        }
+        
+        // Get number of arguments
+        size_t argument_count() const {
+            return arguments_.size();
+        }
+        
+        // Check if argument exists by name
+        bool has_argument(const std::string& name) const {
+            return argument_map_.find(name) != argument_map_.end();
+        }
+        
+        // Get argument by name (for internal use)
+        std::shared_ptr<Argument> get_argument(const std::string& name) const {
+            auto it = argument_map_.find(name);
+            if (it != argument_map_.end()) {
+                return it->second;
+            }
+            return nullptr;
+        }
+        
+        // Get all arguments (for internal use)
+        const std::vector<std::shared_ptr<Argument>>& get_arguments() const {
+            return arguments_;
+        }
+        
+        // Check if this parser has help enabled
+        bool help_enabled() const {
+            return add_help_;
+        }
+        
+    private:
+        // Extract program name from path (removes directory path)
+        std::string _extract_prog_name(const std::string& argv0) const {
+            size_t last_slash = argv0.find_last_of("/\\");
+            if (last_slash != std::string::npos) {
+                return argv0.substr(last_slash + 1);
+            }
+            return argv0;
+        }
+    };
+    
 } // namespace argparse
 
 #endif // ARGPARSE_HPP_INCLUDED

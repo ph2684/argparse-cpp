@@ -63,8 +63,32 @@ set(TEST_SOURCES
     unit/parser_integration_test.cpp
 )
 
-# テスト実行ファイルを作成
+# 統合テストファイルの設定
+set(INTEGRATION_TEST_SOURCES
+    integration/python_compat_test.cpp
+)
+
+# テスト実行ファイルを作成（ユニットテスト）
 foreach(TEST_SOURCE ${TEST_SOURCES})
+    # ファイル名からテスト名を生成
+    get_filename_component(TEST_NAME ${TEST_SOURCE} NAME_WE)
+    
+    # 実行ファイルを作成
+    add_executable(${TEST_NAME} ${TEST_SOURCE})
+    
+    # Google Testライブラリをリンク
+    target_link_libraries(${TEST_NAME} gtest_main gtest)
+    
+    # pthreadが必要な場合
+    find_package(Threads REQUIRED)
+    target_link_libraries(${TEST_NAME} Threads::Threads)
+    
+    # テストを登録
+    add_test(NAME ${TEST_NAME} COMMAND ${TEST_NAME})
+endforeach()
+
+# テスト実行ファイルを作成（統合テスト）
+foreach(TEST_SOURCE ${INTEGRATION_TEST_SOURCES})
     # ファイル名からテスト名を生成
     get_filename_component(TEST_NAME ${TEST_SOURCE} NAME_WE)
     

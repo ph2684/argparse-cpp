@@ -155,7 +155,7 @@ TEST_F(HelpGeneratorTest, MetavarTest) {
 
 // Test default value display
 TEST_F(HelpGeneratorTest, DefaultValueTest) {
-    parser.add_argument("--timeout").type("int").default_value(30).help("Timeout in seconds");
+    parser.add_argument("--timeout").type<int>().default_value(30).help("Timeout in seconds");
     parser.add_argument("--output").default_value(std::string("output.txt")).help("Output file");
     
     try {

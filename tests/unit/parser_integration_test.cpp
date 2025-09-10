@@ -24,7 +24,7 @@ TEST_F(ParserIntegrationTest, BasicInitializationAndArguments) {
     parser.add_argument("input_file").help("Input file path");
     parser.add_argument("--output", "-o").default_value(std::string("output.txt")).help("Output file path");
     parser.add_argument("--verbose", "-v").action("store_true").help("Enable verbose output");
-    parser.add_argument("--count", "-c").type("int").default_value(1).help("Number of iterations");
+    parser.add_argument("--count", "-c").type<int>().default_value(1).help("Number of iterations");
     
     // 引数が正しく追加されていることを確認
     EXPECT_EQ(parser.argument_count(), 5); // 4 + help option
@@ -41,7 +41,7 @@ TEST_F(ParserIntegrationTest, ArgumentAddingParsingAndRetrieval) {
     // 様々な種類の引数を追加
     parser.add_argument("command").help("Command to execute");
     parser.add_argument("--force", "-f").action("store_true").help("Force execution");
-    parser.add_argument("--threads", "-t").type("int").default_value(4).help("Number of threads");
+    parser.add_argument("--threads", "-t").type<int>().default_value(4).help("Number of threads");
     parser.add_argument("--config").default_value(std::string("config.json")).help("Configuration file");
     
     // 引数を解析
@@ -60,7 +60,7 @@ TEST_F(ParserIntegrationTest, DefaultValueIntegration) {
     argparse::ArgumentParser parser("default_test");
     
     // デフォルト値を持つ引数を追加
-    parser.add_argument("--timeout").type("int").default_value(30);
+    parser.add_argument("--timeout").type<int>().default_value(30);
     parser.add_argument("--mode").default_value(std::string("auto"));
     parser.add_argument("--enabled").action("store_true");
     parser.add_argument("--disabled").action("store_false");
@@ -87,7 +87,7 @@ TEST_F(ParserIntegrationTest, ComplexArgumentPattern) {
     // オプション引数（複数名前）
     parser.add_argument("--recursive", "-r").action("store_true").help("Recursive copy");
     parser.add_argument("--exclude", "-x").default_value(std::string("")).help("Exclude pattern");
-    parser.add_argument("--max-size", "-s").type("int").default_value(1024).help("Maximum file size");
+    parser.add_argument("--max-size", "-s").type<int>().default_value(1024).help("Maximum file size");
     
     // 解析テスト1: 全引数指定
     std::vector<std::string> args1 = {"src/", "dst/", "-r", "--exclude", "*.tmp", "-s", "2048"};
@@ -115,7 +115,7 @@ TEST_F(ParserIntegrationTest, ErrorHandlingIntegration) {
     argparse::ArgumentParser parser("error_test", "", "", false); // ヘルプ無効
     
     parser.add_argument("required_arg").required(true);
-    parser.add_argument("--optional").type("int").default_value(0);
+    parser.add_argument("--optional").type<int>().default_value(0);
     
     // 必須引数が不足している場合
     std::vector<std::string> missing_args = {"--optional", "42"};
@@ -136,7 +136,7 @@ TEST_F(ParserIntegrationTest, ArgcArgvIntegration) {
     
     parser.add_argument("program_name").help("Program name");
     parser.add_argument("--debug", "-d").action("store_true").help("Debug mode");
-    parser.add_argument("--level", "-l").type("int").default_value(1).help("Log level");
+    parser.add_argument("--level", "-l").type<int>().default_value(1).help("Log level");
     
     const char* argv[] = {"argc_argv_test", "my_program", "--debug", "-l", "3"};
     int argc = sizeof(argv) / sizeof(argv[0]);
@@ -154,9 +154,9 @@ TEST_F(ParserIntegrationTest, AnyValueTypeConverterIntegration) {
     
     // 様々な型の引数を追加
     parser.add_argument("--str-val").default_value(std::string("default_string"));
-    parser.add_argument("--int-val").type("int").default_value(42);
+    parser.add_argument("--int-val").type<int>().default_value(42);
     parser.add_argument("--bool-val").action("store_true");
-    parser.add_argument("--double-val").type("double").default_value(2.71828);
+    parser.add_argument("--double-val").type<double>().default_value(2.71828);
     
     std::vector<std::string> args = {
         "--str-val", "test_string",
@@ -214,7 +214,7 @@ TEST_F(ParserIntegrationTest, LargeScaleIntegration) {
     // 大量の引数を追加（性能テスト）
     for (int i = 0; i < 50; ++i) {
         std::string arg_name = "--option" + std::to_string(i);
-        parser.add_argument(arg_name).type("int").default_value(i);
+        parser.add_argument(arg_name).type<int>().default_value(i);
     }
     
     // 一部の引数を解析
@@ -255,7 +255,7 @@ TEST_F(ParserIntegrationTest, PythonCompatibilityIntegration) {
         .help("Output filename");
         
     parser.add_argument("--count", "-c")
-        .type("int")
+        .type<int>()
         .default_value(1)
         .help("Number of times to process");
     

@@ -41,7 +41,7 @@ TEST_F(PythonCompatibilityTest, DefaultValueCompatibility) {
     // args = parser.parse_args([])
     
     argparse::ArgumentParser parser("default_test");
-    parser.add_argument("--count").type("int").default_value(1);
+    parser.add_argument("--count").type<int>().default_value(1);
     parser.add_argument("--output").default_value(std::string("output.txt"));
     parser.add_argument("--enable").action("store_true");
     
@@ -63,8 +63,8 @@ TEST_F(PythonCompatibilityTest, TypeConversionCompatibility) {
     // args = parser.parse_args(['--integer', '42', '--float-num', '3.14159', '--text', 'hello'])
     
     argparse::ArgumentParser parser("type_test");
-    parser.add_argument("--integer").type("int");
-    parser.add_argument("--float-num").type("double");
+    parser.add_argument("--integer").type<int>();
+    parser.add_argument("--float-num").type<double>();
     parser.add_argument("--text");
     
     std::vector<std::string> args = {"--integer", "42", "--float-num", "3.14159", "--text", "hello"};
@@ -113,7 +113,7 @@ TEST_F(PythonCompatibilityTest, ShortOptionCompatibility) {
     argparse::ArgumentParser parser("short_opt_test");
     parser.add_argument("--verbose", "-v").action("store_true");
     parser.add_argument("--output", "-o").default_value(std::string("output.txt"));
-    parser.add_argument("--count", "-c").type("int").default_value(1);
+    parser.add_argument("--count", "-c").type<int>().default_value(1);
     
     std::vector<std::string> args = {"-v", "-o", "result.txt", "-c", "5"};
     auto ns = parser.parse_args(args);
@@ -161,7 +161,7 @@ TEST_F(PythonCompatibilityTest, ComplexPatternCompatibility) {
     parser.add_argument("dest").help("Destination file");
     parser.add_argument("--recursive", "-r").action("store_true").help("Recursive operation");
     parser.add_argument("--exclude", "-x").default_value(std::string("")).help("Exclude pattern");
-    parser.add_argument("--max-size").type("int").default_value(1024).help("Maximum size");
+    parser.add_argument("--max-size").type<int>().default_value(1024).help("Maximum size");
     
     std::vector<std::string> args = {"src.txt", "dst.txt", "-r", "--exclude", "*.tmp", "--max-size", "2048"};
     auto ns = parser.parse_args(args);
@@ -178,7 +178,7 @@ TEST_F(PythonCompatibilityTest, ErrorHandlingCompatibility) {
     argparse::ArgumentParser parser("error_test", "", "", false); // ヘルプ無効
     parser.add_argument("required_pos");
     parser.add_argument("--required-opt").required(true);
-    parser.add_argument("--number").type("int");
+    parser.add_argument("--number").type<int>();
     
     // 必須位置引数が不足 - Python: SystemExit with error message
     std::vector<std::string> missing_pos = {"--required-opt", "value"};
@@ -269,7 +269,7 @@ TEST_F(PythonCompatibilityTest, EdgeValueCompatibility) {
     // ゼロ値のテスト
     {
         argparse::ArgumentParser parser("zero_test");
-        parser.add_argument("--zero").type("int").default_value(999);
+        parser.add_argument("--zero").type<int>().default_value(999);
         
         std::vector<std::string> args = {"--zero", "0"};
         auto ns = parser.parse_args(args);
@@ -280,7 +280,7 @@ TEST_F(PythonCompatibilityTest, EdgeValueCompatibility) {
     // 負の数のテスト（エラーを回避するため、現在の実装に対応）
     {
         argparse::ArgumentParser parser("negative_test");
-        parser.add_argument("--number").type("int").default_value(0);
+        parser.add_argument("--number").type<int>().default_value(0);
         
         // 負の数が問題を起こす可能性があるため、正の数でテスト
         std::vector<std::string> args = {"--number", "42"};
@@ -310,7 +310,7 @@ TEST_F(PythonCompatibilityTest, RealWorldScenarioCompatibility) {
     parser.add_argument("-q", "--quiet").action("store_true").help("Quiet mode");
     parser.add_argument("-n", "--dry-run").action("store_true").help("Dry run mode");
     parser.add_argument("-f", "--force").action("store_true").help("Force overwrite");
-    parser.add_argument("--threads").type("int").default_value(1).help("Number of threads");
+    parser.add_argument("--threads").type<int>().default_value(1).help("Number of threads");
     
     std::vector<std::string> args = {"input.txt", "-v", "-o", "result.txt", "--threads", "4"};
     auto ns = parser.parse_args(args);

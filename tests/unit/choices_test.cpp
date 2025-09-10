@@ -112,7 +112,7 @@ TEST_F(ChoicesTest, TypeConversionWithChoices) {
     ArgumentParser parser("test_program");
     
     parser.add_argument("--port")
-        .type("int")
+        .type<int>()
         .choices(std::vector<int>{80, 443, 8080, 8443})
         .help("Port number");
     

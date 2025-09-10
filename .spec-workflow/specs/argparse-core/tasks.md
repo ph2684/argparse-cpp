@@ -39,10 +39,11 @@ _Prompt: Role: [専門的な開発者の役割] | Task: [コンテキスト参�
   - TypeConverterテンプレートの実装
   - int、float、string、boolの変換器
   - カスタム型変換のサポート
+  - **テンプレートメソッド type<T>() の実装**
   - Purpose: 文字列から各型への安全な変換
-  - _Requirements: 要件6、設計書のTypeConverter_
-  - _Tests: tests/unit/type_converter_test.cpp - int、float、bool、string変換、不正値での例外、カスタム変換器のテスト_
-  - _Prompt: Role: C++型システム専門家 | Task: detail名前空間にTypeConverterテンプレートを実装し、文字列からint、float、bool等への変換機能を提供、std::functionを使用してカスタム変換器もサポート | Restrictions: 変換失敗時は適切な例外を投げる、型安全性を確保 | Success: 各型への変換が正しく動作し、エラー時に明確な例外が発生し、tests/unit/type_converter_test.cppが通過する_
+  - _Requirements: 要件6、設計書のTypeConverter、型安全な型指定_
+  - _Tests: tests/unit/type_converter_test.cpp - type<int>()、type<float>()、type<double>()、type<bool>()、type<std::string>()の動作、不正値での例外、カスタム型のテスト_
+  - _Prompt: Role: C++型システム専門家 | Task: Argumentクラスにtype<T>()テンプレートメソッドを実装し、コンパイル時型安全性を提供、std::is_same_vまたはC++11互換の型特性を使用 | Restrictions: 変換失敗時は適切な例外を投げる、type("int")文字列版は削除、C++11準拠 | Success: type<int>()等が正しく動作し、コンパイル時エラーでタイポを防止、tests/unit/type_converter_test.cppが通過する_
 
 - [x] 5. ArgumentParserクラスの基本実装
   - File: include/argparse/argparse.hpp

@@ -854,6 +854,26 @@ namespace argparse {
         }
         
         template<typename T>
+        Argument& type() {
+            definition_.converter = detail::TypeConverter::get_converter<T>();
+            // 型名を設定
+            if (std::is_same<T, int>::value) {
+                definition_.type_name = "int";
+            } else if (std::is_same<T, float>::value) {
+                definition_.type_name = "float";
+            } else if (std::is_same<T, double>::value) {
+                definition_.type_name = "double";
+            } else if (std::is_same<T, bool>::value) {
+                definition_.type_name = "bool";
+            } else if (std::is_same<T, std::string>::value) {
+                definition_.type_name = "string";
+            } else {
+                definition_.type_name = "string";  // デフォルト
+            }
+            return *this;
+        }
+        
+        template<typename T>
         Argument& default_value(const T& value) {
             definition_.default_value = value;
             return *this;

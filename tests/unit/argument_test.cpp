@@ -60,7 +60,7 @@ TEST_F(ArgumentTest, FluentInterface) {
     
     // チェーン可能であることを確認
     Argument& result = arg.help("Number of iterations")
-                         .type("int")
+                         .type<int>()
                          .default_value(1)
                          .required(true);
     
@@ -101,7 +101,7 @@ TEST_F(ArgumentTest, Action) {
 // Type設定のテスト
 TEST_F(ArgumentTest, Type) {
     Argument arg("--count");
-    arg.type("int");
+    arg.type<int>();
     
     EXPECT_EQ(arg.definition().type_name, "int");
     
@@ -192,7 +192,7 @@ TEST_F(ArgumentTest, Required) {
 // Value conversion のテスト
 TEST_F(ArgumentTest, ConvertValue) {
     Argument int_arg("--count");
-    int_arg.type("int");
+    int_arg.type<int>();
     
     auto result = int_arg.convert_value("42");
     EXPECT_EQ(result.get<int>(), 42);
@@ -205,7 +205,7 @@ TEST_F(ArgumentTest, ConvertValue) {
 
 TEST_F(ArgumentTest, ConvertValueThrowsOnError) {
     Argument int_arg("--count");
-    int_arg.type("int");
+    int_arg.type<int>();
     
     EXPECT_THROW(int_arg.convert_value("invalid"), std::invalid_argument);
 }
@@ -263,7 +263,7 @@ TEST_F(ArgumentTest, ComplexConfiguration) {
     Argument arg("--level");
     
     arg.help("Set logging level")
-       .type("int")
+       .type<int>()
        .default_value(1)
        .choices(std::vector<int>{1, 2, 3, 4, 5})
        .required(false)
@@ -329,4 +329,75 @@ TEST_F(ArgumentTest, EdgeCases) {
     std::string long_name(1000, 'a');
     Argument arg3(long_name);
     EXPECT_EQ(arg3.get_name(), long_name);
+}
+
+// type<T>()テンプレートメソッドのテスト
+TEST_F(ArgumentTest, TypeTemplateMethodInt) {
+    Argument arg("--count");
+    arg.type<int>();
+    
+    // 型変換が正常に動作するかテスト
+    auto result = arg.convert_value("42");
+    EXPECT_EQ(result.get<int>(), 42);
+    
+    result = arg.convert_value("-123");
+    EXPECT_EQ(result.get<int>(), -123);
+    
+    // 不正な値での例外テスト
+    EXPECT_THROW(arg.convert_value("abc"), std::invalid_argument);
+}
+
+TEST_F(ArgumentTest, TypeTemplateMethodDouble) {
+    Argument arg("--value");
+    arg.type<double>();
+    
+    auto result = arg.convert_value("3.14159");
+    EXPECT_DOUBLE_EQ(result.get<double>(), 3.14159);
+    
+    result = arg.convert_value("-2.5");
+    EXPECT_DOUBLE_EQ(result.get<double>(), -2.5);
+    
+    EXPECT_THROW(arg.convert_value("not_a_number"), std::invalid_argument);
+}
+
+TEST_F(ArgumentTest, TypeTemplateMethodBool) {
+    Argument arg("--flag");
+    arg.type<bool>();
+    
+    EXPECT_TRUE(arg.convert_value("true").get<bool>());
+    EXPECT_TRUE(arg.convert_value("1").get<bool>());
+    EXPECT_FALSE(arg.convert_value("false").get<bool>());
+    EXPECT_FALSE(arg.convert_value("0").get<bool>());
+    
+    EXPECT_THROW(arg.convert_value("maybe"), std::invalid_argument);
+}
+
+TEST_F(ArgumentTest, TypeTemplateMethodString) {
+    Argument arg("--name");
+    arg.type<std::string>();
+    
+    auto result = arg.convert_value("hello world");
+    EXPECT_EQ(result.get<std::string>(), "hello world");
+    
+    result = arg.convert_value("");
+    EXPECT_EQ(result.get<std::string>(), "");
+}
+
+TEST_F(ArgumentTest, TypeTemplateMethodChaining) {
+    Argument arg("--level");
+    
+    // メソッドチェイニングが正常に動作するかテスト
+    arg.type<int>()
+       .default_value(1)
+       .help("Set level")
+       .required(true);
+    
+    const auto& def = arg.definition();
+    EXPECT_EQ(def.default_value.get<int>(), 1);
+    EXPECT_EQ(def.help, "Set level");
+    EXPECT_TRUE(def.required);
+    
+    // 型変換も正常に動作するか確認
+    auto result = arg.convert_value("42");
+    EXPECT_EQ(result.get<int>(), 42);
 }

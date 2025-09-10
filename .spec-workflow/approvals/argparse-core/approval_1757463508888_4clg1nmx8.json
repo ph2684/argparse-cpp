@@ -1,0 +1,12 @@
+{
+  "id": "approval_1757463508888_4clg1nmx8",
+  "title": "type<T>()テンプレートメソッドへの仕様変更",
+  "filePath": ".spec-workflow/specs/argparse-core/requirements.md",
+  "type": "document",
+  "status": "approved",
+  "createdAt": "2025-09-10T00:18:28.888Z",
+  "category": "spec",
+  "categoryName": "argparse-core",
+  "response": "ダッシュボードから承認",
+  "respondedAt": "2025-09-10T00:20:06.146Z"
+}

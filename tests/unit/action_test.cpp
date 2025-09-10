@@ -13,7 +13,7 @@ protected:
 // Test store action (default)
 TEST_F(ActionTest, StoreActionTest) {
     parser.add_argument("--name").action("store");
-    parser.add_argument("--count").action("store").type("int");
+    parser.add_argument("--count").action("store").type<int>();
     
     std::vector<std::string> args = {"--name", "john", "--count", "42"};
     

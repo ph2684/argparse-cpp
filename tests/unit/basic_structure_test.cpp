@@ -182,7 +182,7 @@ TEST_F(BasicStructureTest, RAIICompliance) {
     // Argumentクラスのexception safety
     try {
         argparse::Argument arg("--test");
-        arg.type("int");
+        arg.type<int>();
         // 何らかの処理...
         throw std::runtime_error("test exception");
     } catch (const std::runtime_error&) {

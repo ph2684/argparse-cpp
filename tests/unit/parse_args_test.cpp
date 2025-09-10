@@ -27,7 +27,7 @@ TEST_F(ParseArgsTest, BasicArgcArgvTest) {
 // Basic vector<string> version test
 TEST_F(ParseArgsTest, BasicVectorTest) {
     parser.add_argument("name").help("Name argument");
-    parser.add_argument("--count", "-c").type("int").default_value(1);
+    parser.add_argument("--count", "-c").type<int>().default_value(1);
     
     std::vector<std::string> args = {"alice", "--count", "5"};
     
@@ -39,7 +39,7 @@ TEST_F(ParseArgsTest, BasicVectorTest) {
 
 // Test default values
 TEST_F(ParseArgsTest, DefaultValuesTest) {
-    parser.add_argument("--timeout").type("int").default_value(30);
+    parser.add_argument("--timeout").type<int>().default_value(30);
     parser.add_argument("--debug").action("store_true");
     
     std::vector<std::string> args = {};  // Empty args
@@ -71,7 +71,7 @@ TEST_F(ParseArgsTest, UnknownArgumentErrorTest) {
 
 // Test type conversion error
 TEST_F(ParseArgsTest, TypeConversionErrorTest) {
-    parser.add_argument("--count").type("int");
+    parser.add_argument("--count").type<int>();
     
     std::vector<std::string> args = {"--count", "not_a_number"};
     

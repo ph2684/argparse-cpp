@@ -174,7 +174,7 @@ TEST_F(ErrorMessageTest, PositionalArgumentError) {
 
 TEST_F(ErrorMessageTest, TypeConversionError) {
     ArgumentParser parser("testprog");
-    parser.add_argument("--count").type("int");
+    parser.add_argument("--count").type<int>();
     
     std::string error_msg = capture_error_message(parser, {"--count", "abc"});
     
@@ -211,7 +211,7 @@ TEST_F(ErrorMessageTest, UsageLineGeneration) {
     ArgumentParser parser("myprogram");
     parser.add_argument("input").help("Input file");
     parser.add_argument("--verbose", "-v").action("store_true");
-    parser.add_argument("--count").type("int").default_value(1);
+    parser.add_argument("--count").type<int>().default_value(1);
     parser.add_argument("--required-opt").required(true);
     
     std::string error_msg = ErrorFormatter::format_error_with_usage(parser, "test error");

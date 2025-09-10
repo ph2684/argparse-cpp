@@ -21,7 +21,7 @@ TEST_F(ParserTest, TokenArgumentMatching) {
     
     // オプション引数の設定
     parser->add_argument("-v", "--verbose").action("store_true").help("Enable verbose output");
-    parser->add_argument("-n", "--number").type("int").default_value(42).help("A number");
+    parser->add_argument("-n", "--number").type<int>().default_value(42).help("A number");
     
     // 基本的なマッチングテスト
     std::vector<std::string> args = {"input.txt", "--verbose", "--number", "123"};
@@ -51,7 +51,7 @@ TEST_F(ParserTest, PositionalArgumentOrder) {
 TEST_F(ParserTest, OptionArgumentSearch) {
     // 短縮形と長形式の両方を定義
     parser->add_argument("-v", "--verbose").action("store_true").help("Verbose mode");
-    parser->add_argument("-o", "--output").type("string").help("Output file");
+    parser->add_argument("-o", "--output").type<std::string>().help("Output file");
     
     // 短縮形でのテスト
     std::vector<std::string> args1 = {"-v", "-o", "out.txt"};
@@ -85,8 +85,8 @@ TEST_F(ParserTest, UnknownArgumentError) {
 // デフォルト値の設定テスト
 TEST_F(ParserTest, DefaultValues) {
     parser->add_argument("filename").help("Input filename");
-    parser->add_argument("-n", "--number").type("int").default_value(42).help("A number");
-    parser->add_argument("-s", "--string").type("string").default_value(std::string("default")).help("A string");
+    parser->add_argument("-n", "--number").type<int>().default_value(42).help("A number");
+    parser->add_argument("-s", "--string").type<std::string>().default_value(std::string("default")).help("A string");
     
     // デフォルト値のみを使用
     std::vector<std::string> args = {"input.txt"};
@@ -99,9 +99,9 @@ TEST_F(ParserTest, DefaultValues) {
 
 // 型変換テスト
 TEST_F(ParserTest, TypeConversion) {
-    parser->add_argument("-i", "--int").type("int").help("Integer value");
-    parser->add_argument("-f", "--float").type("float").help("Float value");
-    parser->add_argument("-b", "--bool").type("bool").help("Boolean value");
+    parser->add_argument("-i", "--int").type<int>().help("Integer value");
+    parser->add_argument("-f", "--float").type<float>().help("Float value");
+    parser->add_argument("-b", "--bool").type<bool>().help("Boolean value");
     
     std::vector<std::string> args = {"--int", "123", "--float", "3.14", "--bool", "true"};
     auto result = parser->parse_args(args);
@@ -153,7 +153,7 @@ TEST_F(ParserTest, RequiredArguments) {
 
 // オプション値が不足している場合のエラーテスト
 TEST_F(ParserTest, MissingOptionValue) {
-    parser->add_argument("-o", "--output").type("string").help("Output file");
+    parser->add_argument("-o", "--output").type<std::string>().help("Output file");
     
     std::vector<std::string> args = {"--output"};
     EXPECT_THROW(parser->parse_args(args), std::runtime_error);
@@ -164,7 +164,7 @@ TEST_F(ParserTest, MixedArguments) {
     parser->add_argument("input").help("Input file");
     parser->add_argument("output").help("Output file");
     parser->add_argument("-v", "--verbose").action("store_true").help("Verbose mode");
-    parser->add_argument("-c", "--count").type("int").default_value(1).help("Count");
+    parser->add_argument("-c", "--count").type<int>().default_value(1).help("Count");
     
     std::vector<std::string> args = {"in.txt", "out.txt", "--verbose", "--count", "5"};
     auto result = parser->parse_args(args);
@@ -177,7 +177,7 @@ TEST_F(ParserTest, MixedArguments) {
 
 // 型変換エラーテスト
 TEST_F(ParserTest, TypeConversionError) {
-    parser->add_argument("-n", "--number").type("int").help("Number");
+    parser->add_argument("-n", "--number").type<int>().help("Number");
     
     std::vector<std::string> args = {"--number", "not_a_number"};
     EXPECT_THROW(parser->parse_args(args), std::invalid_argument);

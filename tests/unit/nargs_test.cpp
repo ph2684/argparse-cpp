@@ -12,7 +12,7 @@ protected:
 
 // Test fixed number nargs
 TEST_F(NargsTest, FixedNumberNargsTest) {
-    parser.add_argument("--coords").nargs(3).type("int");
+    parser.add_argument("--coords").nargs(3).type<int>();
     
     std::vector<std::string> args = {"--coords", "1", "2", "3"};
     
@@ -192,7 +192,7 @@ TEST_F(NargsTest, MixedNargsTest) {
 
 // Test nargs type conversion
 TEST_F(NargsTest, NargsTypeConversionTest) {
-    parser.add_argument("--numbers").nargs(3).type("int");
+    parser.add_argument("--numbers").nargs(3).type<int>();
     
     std::vector<std::string> args = {"--numbers", "1", "2", "3"};
     

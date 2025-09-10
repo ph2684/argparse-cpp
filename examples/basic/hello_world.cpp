@@ -29,7 +29,7 @@ int main(int argc, char* argv[]) {
 
         // オプション引数を追加：--count/-c（整数）
         parser.add_argument("-c", "--count")
-            .type("int")
+            .type<int>()
             .default_value(1)
             .help("Number of times to say hello (default: 1)");
 

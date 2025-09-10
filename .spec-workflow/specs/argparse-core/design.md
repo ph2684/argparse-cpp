@@ -91,7 +91,7 @@ graph TD
 - **インターフェース:**
   - `set_name(name)`
   - `set_help(text)`
-  - `set_type(converter)`
+  - `type<T>()` - テンプレートメソッドによる型安全な型指定
   - `set_default(value)`
   - `set_choices(values)`
   - `validate(value)`
@@ -144,7 +144,7 @@ struct ArgumentDefinition {
     std::string help;                    // ヘルプテキスト
     std::string metavar;                 // ヘルプでの表示名
     std::string action;                  // "store", "store_true", etc.
-    std::string type_name;               // "int", "float", "string"
+    std::type_info const* type_info;     // 型情報（型安全性のため）
     detail::AnyValue default_value;      // デフォルト値（型消去）
     std::vector<detail::AnyValue> choices; // 選択肢
     int nargs;                           // 引数の数（-1=任意）
@@ -210,6 +210,47 @@ public:
 - `operator=(const char* value)`は文字列リテラル（`"Hello"`など）を自動的に`std::string`に変換
 - これによりREADMEの例`default_value("Hello")`が直接コンパイル可能
 - C++11のテンプレート推論問題を回避し、Python argparseとの使い勝手の整合性を保持
+
+### 型安全な型指定（テンプレートメソッド）
+```cpp
+// Argumentクラスのメソッド
+template<typename T>
+Argument& type() {
+    // 型情報を保存
+    definition_.type_info = &typeid(T);
+    
+    // 型に応じた変換器を設定
+    if constexpr (std::is_same_v<T, int>) {
+        definition_.converter = [](const std::string& s) { 
+            return detail::AnyValue(std::stoi(s)); 
+        };
+    } else if constexpr (std::is_same_v<T, float>) {
+        definition_.converter = [](const std::string& s) { 
+            return detail::AnyValue(std::stof(s)); 
+        };
+    } else if constexpr (std::is_same_v<T, double>) {
+        definition_.converter = [](const std::string& s) { 
+            return detail::AnyValue(std::stod(s)); 
+        };
+    } else if constexpr (std::is_same_v<T, bool>) {
+        definition_.converter = [](const std::string& s) { 
+            return detail::AnyValue(s == "true" || s == "1"); 
+        };
+    } else if constexpr (std::is_same_v<T, std::string>) {
+        definition_.converter = [](const std::string& s) { 
+            return detail::AnyValue(s); 
+        };
+    }
+    // カスタム型はユーザー定義の特殊化で対応
+    return *this;
+}
+```
+
+**利点:**
+- コンパイル時型チェックによるタイポ防止
+- 型安全性の向上（`type<int>()`は明確にint型を要求）
+- C++らしいテンプレートベースのAPI
+- カスタム型の拡張が容易
 
 ## エラー処理
 

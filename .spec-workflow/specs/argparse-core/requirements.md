@@ -77,10 +77,11 @@ argparse-coreは、PythonのargparseモジュールのコアAPIをC++で実装�
 
 #### 受け入れ基準
 
-1. WHEN typeでintを指定 THEN システムは 文字列を整数に変換する
-2. WHEN typeでfloatを指定 THEN システムは 文字列を浮動小数点数に変換する
+1. WHEN type<int>()テンプレートメソッドを指定 THEN システムは 文字列を整数に変換する
+2. WHEN type<float>()またはtype<double>()を指定 THEN システムは 文字列を浮動小数点数に変換する
 3. WHEN choicesパラメータを指定 THEN システムは 指定された値のみ受け付ける
 4. IF 変換に失敗 THEN システムは 適切なエラーメッセージを表示する
+5. WHEN type<CustomType>()でカスタム型を指定 THEN システムは ユーザー定義の変換器を使用する
 
 ### 要件7: 引数グループ
 

@@ -280,7 +280,7 @@ TEST_F(ParserIntegrationTest, MemoryManagementRAII) {
     {
         argparse::ArgumentParser parser("memory_test");
         parser.add_argument("--large-string").default_value(std::string(10000, 'x'));
-        parser.add_argument("--numbers").type("int").default_value(42);
+        parser.add_argument("--numbers").type<int>().default_value(42);
         
         std::vector<std::string> args = {"--numbers", "999"};
         auto ns = parser.parse_args(args);

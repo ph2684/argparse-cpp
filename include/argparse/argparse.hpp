@@ -451,21 +451,6 @@ namespace argparse {
                 };
             }
             
-            // 型名から変換器を取得
-            static std::function<AnyValue(const std::string&)> get_converter_by_name(const std::string& type_name) {
-                if (type_name == "int") {
-                    return int_converter();
-                } else if (type_name == "float" || type_name == "double") {
-                    return float_converter();
-                } else if (type_name == "bool") {
-                    return bool_converter();
-                } else if (type_name == "string" || type_name == "str") {
-                    return string_converter();
-                } else {
-                    // 不明な型はデフォルトでstring変換
-                    return string_converter();
-                }
-            }
             
             // カスタム変換器の作成ヘルパー
             template<typename T>
@@ -847,11 +832,6 @@ namespace argparse {
             return *this;
         }
         
-        Argument& type(const std::string& type_name) {
-            definition_.type_name = type_name;
-            _setup_converter_for_type(type_name);
-            return *this;
-        }
         
         template<typename T>
         Argument& type() {
@@ -1059,10 +1039,6 @@ namespace argparse {
             };
         }
         
-        // Setup converter based on type using TypeConverter
-        void _setup_converter_for_type(const std::string& type_name) {
-            definition_.converter = detail::TypeConverter::get_converter_by_name(type_name);
-        }
     };
     
     // ArgumentGroup method implementations (after Argument class definition)

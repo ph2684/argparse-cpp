@@ -170,36 +170,6 @@ TEST_F(TypeConverterTest, StringConverter) {
     EXPECT_EQ(converter("special!@#$%^&*()").get<std::string>(), "special!@#$%^&*()");
 }
 
-// get_converter_by_name のテスト
-TEST_F(TypeConverterTest, GetConverterByName) {
-    // int
-    auto int_conv = TypeConverter::get_converter_by_name("int");
-    EXPECT_EQ(int_conv("42").get<int>(), 42);
-    
-    // float
-    auto float_conv = TypeConverter::get_converter_by_name("float");
-    EXPECT_DOUBLE_EQ(float_conv("3.14").get<double>(), 3.14);
-    
-    // double
-    auto double_conv = TypeConverter::get_converter_by_name("double");
-    EXPECT_DOUBLE_EQ(double_conv("2.71").get<double>(), 2.71);
-    
-    // bool
-    auto bool_conv = TypeConverter::get_converter_by_name("bool");
-    EXPECT_TRUE(bool_conv("true").get<bool>());
-    
-    // string
-    auto str_conv = TypeConverter::get_converter_by_name("string");
-    EXPECT_EQ(str_conv("test").get<std::string>(), "test");
-    
-    // str
-    auto str_conv2 = TypeConverter::get_converter_by_name("str");
-    EXPECT_EQ(str_conv2("test").get<std::string>(), "test");
-    
-    // 未知の型名 -> デフォルトでstring変換
-    auto unknown_conv = TypeConverter::get_converter_by_name("unknown_type");
-    EXPECT_EQ(unknown_conv("test").get<std::string>(), "test");
-}
 
 // テンプレート特殊化のテスト
 TEST_F(TypeConverterTest, GetConverterTemplate) {

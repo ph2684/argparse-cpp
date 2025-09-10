@@ -9,7 +9,7 @@
  * A C++11 implementation inspired by Python's argparse module, providing
  * familiar API for C++ developers.
  * 
- * Version: 0.1.0
+ * Version: 0.1.1
  * License: MIT
  */
 
@@ -32,8 +32,8 @@
 // Version information
 #define ARGPARSE_VERSION_MAJOR 0
 #define ARGPARSE_VERSION_MINOR 1
-#define ARGPARSE_VERSION_PATCH 0
-#define ARGPARSE_VERSION "0.1.0"
+#define ARGPARSE_VERSION_PATCH 1
+#define ARGPARSE_VERSION "0.1.1"
 
 namespace argparse {
     

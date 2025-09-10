@@ -1,0 +1,108 @@
+name: Version Consistency Check
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  version_check:
+    name: Check Version Consistency
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history to access releases
+
+      - name: Extract code version from header
+        id: code_version
+        run: |
+          CODE_VERSION=$(grep '#define ARGPARSE_VERSION ' include/argparse/argparse.hpp | sed 's/#define ARGPARSE_VERSION "\(.*\)"/\1/')
+          echo "version=$CODE_VERSION" >> $GITHUB_OUTPUT
+          echo "Code version: $CODE_VERSION"
+
+      - name: Get latest release draft
+        id: draft_version
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Get the latest draft release
+          DRAFT_INFO=$(gh api repos/${{ github.repository }}/releases --jq '.[] | select(.draft == true) | {tag_name, name} | @json' | head -1)
+          
+          if [ -n "$DRAFT_INFO" ]; then
+            DRAFT_TAG=$(echo "$DRAFT_INFO" | jq -r '.tag_name')
+            DRAFT_NAME=$(echo "$DRAFT_INFO" | jq -r '.name')
+            
+            # Remove 'v' prefix if it exists
+            DRAFT_VERSION=${DRAFT_TAG#v}
+            
+            echo "version=$DRAFT_VERSION" >> $GITHUB_OUTPUT
+            echo "tag=$DRAFT_TAG" >> $GITHUB_OUTPUT
+            echo "name=$DRAFT_NAME" >> $GITHUB_OUTPUT
+            echo "Draft version: $DRAFT_VERSION (tag: $DRAFT_TAG)"
+          else
+            echo "No draft release found"
+            echo "version=" >> $GITHUB_OUTPUT
+            echo "tag=" >> $GITHUB_OUTPUT
+            echo "name=" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Compare versions
+        run: |
+          CODE_VERSION="${{ steps.code_version.outputs.version }}"
+          DRAFT_VERSION="${{ steps.draft_version.outputs.version }}"
+          DRAFT_TAG="${{ steps.draft_version.outputs.tag }}"
+          
+          echo "=== Version Comparison ==="
+          echo "Code version:  $CODE_VERSION"
+          echo "Draft version: $DRAFT_VERSION"
+          echo "Draft tag:     $DRAFT_TAG"
+          
+          if [ -z "$DRAFT_VERSION" ]; then
+            echo "⚠️  No draft release found. This is expected for the first release."
+            echo "When ready to release, create a draft release with tag v$CODE_VERSION"
+            exit 0
+          fi
+          
+          if [ "$CODE_VERSION" = "$DRAFT_VERSION" ]; then
+            echo "✅ Versions match! Code and draft release are consistent."
+          else
+            echo "❌ Version mismatch detected!"
+            echo ""
+            echo "The version in the code ($CODE_VERSION) does not match the draft release version ($DRAFT_VERSION)."
+            echo ""
+            echo "To fix this, you need to either:"
+            echo "1. Update the code version to match the draft release ($DRAFT_VERSION)"
+            echo "2. Update the draft release to match the code version (v$CODE_VERSION)"
+            echo ""
+            echo "Code version locations to update:"
+            echo "- include/argparse/argparse.hpp (line ~12 comment and line ~36 macro)"
+            echo "- tests/unit/basic_structure_test.cpp (expected values in test)"
+            echo ""
+            exit 1
+          fi
+
+      - name: Summary
+        if: always()
+        run: |
+          CODE_VERSION="${{ steps.code_version.outputs.version }}"
+          DRAFT_VERSION="${{ steps.draft_version.outputs.version }}"
+          
+          echo "## Version Check Summary" >> $GITHUB_STEP_SUMMARY
+          echo "| Type | Version |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|---------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Code | \`$CODE_VERSION\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Draft Release | \`${DRAFT_VERSION:-"Not found"}\` |" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -n "$DRAFT_VERSION" ]; then
+            if [ "$CODE_VERSION" = "$DRAFT_VERSION" ]; then
+              echo "| Status | ✅ Match |" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "| Status | ❌ Mismatch |" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "| Status | ⚠️  No draft |" >> $GITHUB_STEP_SUMMARY
+          fi

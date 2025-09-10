@@ -1,0 +1,172 @@
+name: Auto Release on Version Change
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      force_release:
+        description: 'Force create release even if version unchanged'
+        required: false
+        default: 'false'
+        type: boolean
+
+permissions:
+  contents: write  # Required to create releases and push tags
+
+jobs:
+  check_version_and_release:
+    name: Check Version and Create Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history to compare with previous versions
+
+      - name: Extract current version from code
+        id: current_version
+        run: |
+          VERSION=$(grep '#define ARGPARSE_VERSION ' include/argparse/argparse.hpp | sed 's/#define ARGPARSE_VERSION "\(.*\)"/\1/')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Current version: $VERSION"
+
+      - name: Get latest released version
+        id: latest_release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Get the latest published release (not drafts)
+          LATEST_RELEASE=$(gh api repos/${{ github.repository }}/releases --jq '.[] | select(.draft == false) | .tag_name' | head -1)
+          
+          if [ -n "$LATEST_RELEASE" ]; then
+            # Remove 'v' prefix if it exists
+            LATEST_VERSION=${LATEST_RELEASE#v}
+            echo "version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+            echo "tag=$LATEST_RELEASE" >> $GITHUB_OUTPUT
+            echo "Latest released version: $LATEST_VERSION (tag: $LATEST_RELEASE)"
+          else
+            echo "No published releases found"
+            echo "version=" >> $GITHUB_OUTPUT
+            echo "tag=" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check if new version
+        id: version_check
+        run: |
+          CURRENT_VERSION="${{ steps.current_version.outputs.version }}"
+          LATEST_VERSION="${{ steps.latest_release.outputs.version }}"
+          FORCE_RELEASE="${{ github.event.inputs.force_release }}"
+          
+          echo "=== Version Check ==="
+          echo "Current code version: $CURRENT_VERSION"
+          echo "Latest release version: $LATEST_VERSION"
+          echo "Force release: $FORCE_RELEASE"
+          
+          if [ "$FORCE_RELEASE" = "true" ]; then
+            echo "🔀 Force release requested"
+            echo "should_release=true" >> $GITHUB_OUTPUT
+            echo "is_new_version=false" >> $GITHUB_OUTPUT
+          elif [ -z "$LATEST_VERSION" ]; then
+            echo "🎉 First release detected"
+            echo "should_release=true" >> $GITHUB_OUTPUT
+            echo "is_new_version=true" >> $GITHUB_OUTPUT
+          elif [ "$CURRENT_VERSION" != "$LATEST_VERSION" ]; then
+            echo "🚀 New version detected: $LATEST_VERSION → $CURRENT_VERSION"
+            echo "should_release=true" >> $GITHUB_OUTPUT
+            echo "is_new_version=true" >> $GITHUB_OUTPUT
+          else
+            echo "⏸️  No version change detected"
+            echo "should_release=false" >> $GITHUB_OUTPUT
+            echo "is_new_version=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate changelog since last release
+        id: changelog
+        if: steps.version_check.outputs.should_release == 'true'
+        run: |
+          CURRENT_VERSION="${{ steps.current_version.outputs.version }}"
+          LATEST_TAG="${{ steps.latest_release.outputs.tag }}"
+          
+          echo "Generating changelog..."
+          
+          if [ -n "$LATEST_TAG" ]; then
+            # Get commits since last release
+            CHANGELOG=$(git log ${LATEST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
+            
+            if [ -z "$CHANGELOG" ]; then
+              CHANGELOG="- No notable changes since last release"
+            fi
+          else
+            # First release - get all commits
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges | head -20)
+          fi
+          
+          # Format changelog for GitHub
+          cat > changelog.md << 'EOF'
+          ## What's Changed
+          
+          $CHANGELOG
+          
+          **Full Changelog**: https://github.com/${{ github.repository }}/commits/v$CURRENT_VERSION
+          EOF
+          
+          # Replace variables in changelog
+          sed -i "s|\$CHANGELOG|$CHANGELOG|g" changelog.md
+          sed -i "s|\$CURRENT_VERSION|$CURRENT_VERSION|g" changelog.md
+          
+          echo "Generated changelog:"
+          cat changelog.md
+
+      - name: Create git tag
+        if: steps.version_check.outputs.should_release == 'true'
+        run: |
+          VERSION="${{ steps.current_version.outputs.version }}"
+          TAG="v$VERSION"
+          
+          echo "Creating tag: $TAG"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin "$TAG"
+
+      - name: Create GitHub Release
+        if: steps.version_check.outputs.should_release == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.current_version.outputs.version }}"
+          TAG="v$VERSION"
+          IS_NEW_VERSION="${{ steps.version_check.outputs.is_new_version }}"
+          
+          if [ "$IS_NEW_VERSION" = "true" ]; then
+            TITLE="Release $TAG"
+          else
+            TITLE="Release $TAG (Republished)"
+          fi
+          
+          echo "Creating GitHub release: $TAG"
+          
+          gh release create "$TAG" \
+            --title "$TITLE" \
+            --notes-file changelog.md \
+            --verify-tag
+
+      - name: Summary
+        if: always()
+        run: |
+          CURRENT_VERSION="${{ steps.current_version.outputs.version }}"
+          LATEST_VERSION="${{ steps.latest_release.outputs.version }}"
+          SHOULD_RELEASE="${{ steps.version_check.outputs.should_release }}"
+          
+          echo "## Auto Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "| Item | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Code Version | \`$CURRENT_VERSION\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Latest Released | \`${LATEST_VERSION:-"None"}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Action Taken | $([ "$SHOULD_RELEASE" = "true" ] && echo "🚀 Release Created" || echo "⏸️ No Action") |" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "$SHOULD_RELEASE" = "true" ]; then
+            echo "| Release URL | [v$CURRENT_VERSION](https://github.com/${{ github.repository }}/releases/tag/v$CURRENT_VERSION) |" >> $GITHUB_STEP_SUMMARY
+          fi

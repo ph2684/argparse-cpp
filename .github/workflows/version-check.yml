@@ -24,85 +24,89 @@ jobs:
           echo "version=$CODE_VERSION" >> $GITHUB_OUTPUT
           echo "Code version: $CODE_VERSION"
 
-      - name: Get latest release draft
-        id: draft_version
+      - name: Get latest published release
+        id: latest_release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Get the latest draft release
-          DRAFT_INFO=$(gh api repos/${{ github.repository }}/releases --jq '.[] | select(.draft == true) | {tag_name, name} | @json' | head -1)
+          # Get the latest published release (not drafts)
+          LATEST_RELEASE=$(gh api repos/${{ github.repository }}/releases --jq '.[] | select(.draft == false) | .tag_name' | head -1)
           
-          if [ -n "$DRAFT_INFO" ]; then
-            DRAFT_TAG=$(echo "$DRAFT_INFO" | jq -r '.tag_name')
-            DRAFT_NAME=$(echo "$DRAFT_INFO" | jq -r '.name')
-            
+          if [ -n "$LATEST_RELEASE" ]; then
             # Remove 'v' prefix if it exists
-            DRAFT_VERSION=${DRAFT_TAG#v}
+            LATEST_VERSION=${LATEST_RELEASE#v}
             
-            echo "version=$DRAFT_VERSION" >> $GITHUB_OUTPUT
-            echo "tag=$DRAFT_TAG" >> $GITHUB_OUTPUT
-            echo "name=$DRAFT_NAME" >> $GITHUB_OUTPUT
-            echo "Draft version: $DRAFT_VERSION (tag: $DRAFT_TAG)"
+            echo "version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+            echo "tag=$LATEST_RELEASE" >> $GITHUB_OUTPUT
+            echo "Latest released version: $LATEST_VERSION (tag: $LATEST_RELEASE)"
           else
-            echo "No draft release found"
+            echo "No published releases found"
             echo "version=" >> $GITHUB_OUTPUT
             echo "tag=" >> $GITHUB_OUTPUT
-            echo "name=" >> $GITHUB_OUTPUT
           fi
 
       - name: Compare versions
         run: |
           CODE_VERSION="${{ steps.code_version.outputs.version }}"
-          DRAFT_VERSION="${{ steps.draft_version.outputs.version }}"
-          DRAFT_TAG="${{ steps.draft_version.outputs.tag }}"
+          RELEASE_VERSION="${{ steps.latest_release.outputs.version }}"
+          RELEASE_TAG="${{ steps.latest_release.outputs.tag }}"
           
           echo "=== Version Comparison ==="
-          echo "Code version:  $CODE_VERSION"
-          echo "Draft version: $DRAFT_VERSION"
-          echo "Draft tag:     $DRAFT_TAG"
+          echo "Code version:     $CODE_VERSION"
+          echo "Released version: $RELEASE_VERSION"
+          echo "Release tag:      $RELEASE_TAG"
           
-          if [ -z "$DRAFT_VERSION" ]; then
-            echo "⚠️  No draft release found. This is expected for the first release."
-            echo "When ready to release, create a draft release with tag v$CODE_VERSION"
+          if [ -z "$RELEASE_VERSION" ]; then
+            echo "ℹ️  No published releases found."
+            echo "This is expected for new projects or when preparing the first release."
+            echo "Current code version: v$CODE_VERSION"
+            echo "✅ Version check passed."
             exit 0
           fi
           
-          if [ "$CODE_VERSION" = "$DRAFT_VERSION" ]; then
-            echo "✅ Versions match! Code and draft release are consistent."
+          # Use sort -V for version comparison (handles semantic versioning properly)
+          if [ "$CODE_VERSION" = "$RELEASE_VERSION" ]; then
+            echo "ℹ️  Code version matches the latest release."
+            echo "No new release will be created automatically."
+            echo "✅ Version consistency maintained."
+          elif printf '%s\n%s\n' "$RELEASE_VERSION" "$CODE_VERSION" | sort -V -C; then
+            echo "🚀 Code version is newer than the latest release!"
+            echo "Previous: v$RELEASE_VERSION → Current: v$CODE_VERSION"
+            echo "A new release will be created automatically when merged to main."
+            echo "✅ Version update detected."
           else
-            echo "❌ Version mismatch detected!"
+            echo "⚠️  Code version appears to be older than the latest release."
+            echo "Released: v$RELEASE_VERSION, Code: v$CODE_VERSION"
+            echo "This might indicate a rollback or versioning issue."
+            echo "Please verify the version numbers are correct."
             echo ""
-            echo "The version in the code ($CODE_VERSION) does not match the draft release version ($DRAFT_VERSION)."
-            echo ""
-            echo "To fix this, you need to either:"
-            echo "1. Update the code version to match the draft release ($DRAFT_VERSION)"
-            echo "2. Update the draft release to match the code version (v$CODE_VERSION)"
-            echo ""
-            echo "Code version locations to update:"
+            echo "Code version locations to check:"
             echo "- include/argparse/argparse.hpp (line ~12 comment and line ~36 macro)"
             echo "- tests/unit/basic_structure_test.cpp (expected values in test)"
             echo ""
-            exit 1
+            echo "⚠️  Version check completed with warnings."
           fi
 
       - name: Summary
         if: always()
         run: |
           CODE_VERSION="${{ steps.code_version.outputs.version }}"
-          DRAFT_VERSION="${{ steps.draft_version.outputs.version }}"
+          RELEASE_VERSION="${{ steps.latest_release.outputs.version }}"
           
           echo "## Version Check Summary" >> $GITHUB_STEP_SUMMARY
           echo "| Type | Version |" >> $GITHUB_STEP_SUMMARY
           echo "|------|---------|" >> $GITHUB_STEP_SUMMARY
           echo "| Code | \`$CODE_VERSION\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| Draft Release | \`${DRAFT_VERSION:-"Not found"}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Latest Release | \`${RELEASE_VERSION:-"None"}\` |" >> $GITHUB_STEP_SUMMARY
           
-          if [ -n "$DRAFT_VERSION" ]; then
-            if [ "$CODE_VERSION" = "$DRAFT_VERSION" ]; then
-              echo "| Status | ✅ Match |" >> $GITHUB_STEP_SUMMARY
+          if [ -n "$RELEASE_VERSION" ]; then
+            if [ "$CODE_VERSION" = "$RELEASE_VERSION" ]; then
+              echo "| Status | ℹ️  Same Version |" >> $GITHUB_STEP_SUMMARY
+            elif printf '%s\n%s\n' "$RELEASE_VERSION" "$CODE_VERSION" | sort -V -C; then
+              echo "| Status | 🚀 New Version |" >> $GITHUB_STEP_SUMMARY
             else
-              echo "| Status | ❌ Mismatch |" >> $GITHUB_STEP_SUMMARY
+              echo "| Status | ⚠️  Potential Rollback |" >> $GITHUB_STEP_SUMMARY
             fi
           else
-            echo "| Status | ⚠️  No draft |" >> $GITHUB_STEP_SUMMARY
+            echo "| Status | ✅ Ready for First Release |" >> $GITHUB_STEP_SUMMARY
           fi

@@ -91,29 +91,23 @@ jobs:
           echo "Generating changelog..."
           
           if [ -n "$LATEST_TAG" ]; then
-            # Get commits since last release
-            CHANGELOG=$(git log ${LATEST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
+            # Get commits since last release - save to temp file to avoid shell issues
+            git log ${LATEST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges > changelog_temp.txt
             
-            if [ -z "$CHANGELOG" ]; then
-              CHANGELOG="- No notable changes since last release"
+            if [ ! -s changelog_temp.txt ]; then
+              echo "- No notable changes since last release" > changelog_temp.txt
             fi
           else
             # First release - get all commits
-            CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges | head -20)
+            git log --pretty=format:"- %s (%h)" --no-merges | head -20 > changelog_temp.txt
           fi
           
-          # Format changelog for GitHub
-          cat > changelog.md << 'EOF'
-          ## What's Changed
-          
-          $CHANGELOG
-          
-          **Full Changelog**: https://github.com/${{ github.repository }}/commits/v$CURRENT_VERSION
-          EOF
-          
-          # Replace variables in changelog
-          sed -i "s|\$CHANGELOG|$CHANGELOG|g" changelog.md
-          sed -i "s|\$CURRENT_VERSION|$CURRENT_VERSION|g" changelog.md
+          # Format changelog for GitHub - safe method without variable substitution
+          echo "## What's Changed" > changelog.md
+          echo "" >> changelog.md
+          cat changelog_temp.txt >> changelog.md
+          echo "" >> changelog.md
+          echo "**Full Changelog**: https://github.com/${{ github.repository }}/commits/v$CURRENT_VERSION" >> changelog.md
           
           echo "Generated changelog:"
           cat changelog.md
